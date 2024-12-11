@@ -1,0 +1,284 @@
+
+
+
+
+/*
+
+TIMERS:
+1. Temperature update --> Flag --> update struct
+2. PID update --> FLAG --> use latest temperature --> update struct
+3. LOG update --> Flag
+
+
+*/
+
+#include "main.h"
+#if !( defined(MEGATINYCORE) )
+  #error This is designed only for MEGATINYCORE megaAVR board! Please check your Tools->Board setting
+#endif
+#include "TMP23x.h"
+#include "app_data.h"
+#include "state_machine.h"
+#include "pid.h"
+// To be included only in main(), .ino with setup() to avoid `Multiple Definitions` Linker Error
+#include "ATtiny_TimerInterrupt.h"
+
+// To be included only in main(), .ino with setup() to avoid `Multiple Definitions` Linker Error
+#include "ATtiny_ISR_Timer.h"
+
+
+
+/*CONTROL structure
+  holds process steps for each STATE in application. Each [INDEX] maps to enum state_machine
+*/
+CONTROL sample_amp_control[numProcess] = 
+{
+  {HEATER_SHUTDOWN_C, 0, 0, 2, 1, .5},
+  {SAMPLE_ZONE_AMP_SOAK_TARGET_C, 0,0, 3,1,.5},
+  {SAMPLE_ZONE_VALVE_SOAK_TARGET_C, 0, 0, 3, 1, .5},
+  {HEATER_SHUTDOWN_C, 0, 0, 2, 5, 1}
+};
+CONTROL valve_amp_control[numProcess] = 
+{
+  {HEATER_SHUTDOWN_C, 0, 0, 0, 0, 0},
+  {VALVE_ZONE_AMP_SOAK_TARGET_C, 0,0, 2,1,.5},
+  {VALVE_ZONE_VALVE_SOAK_TARGET_C,0, 0, 2, 1, .5},
+  {HEATER_SHUTDOWN_C, 0, 0, 0, 0, 0}
+};
+
+
+// Temperature objects, handles sensor interface
+TMP23X TMP1;
+TMP23X TMP2;
+
+
+volatile byte interrupt1 = 0;
+uint8_t led_value = 0;
+
+
+
+/*Callbacks, handle FLAG updates*/
+void update_ticker();
+void update_pid();
+void update_temperature();
+void send_log();
+
+/*Timers*/
+ISR_Timer ISR_Timer1;
+int tickTimerNumber;
+// tickISRTimer handles MILLIS counter used for time keeping
+ISRTimerData tickISRTimer = {update_ticker,  TICK_TIMER_INTERVAL, 0,  0};
+
+// pidISRTimerData handles timer for update rate for PID compute
+ISRTimerData pidISRTimerData = {update_pid,   PID_TIMER_INTERVAL,   0,  0};
+
+// temperatureISRTimer handles timer for update rate for temperature sensor query
+ISRTimerData temperatureISRTimer = {update_temperature,   TEMPERATURE_TIMER_INTERVAL,   0,  0};
+
+// logISRTimer handles timer for sending LOG information over UART
+ISRTimerData logISRTimer = {send_log,   LOGGING_TIMER_INTERVAL,   0,  0};
+
+
+void update_ticker(){
+  data.time_ticker += 1;
+}
+
+void update_temperature(){
+  flags.flagUpdateTemperature = true;
+}
+
+void update_pid(){
+  flags.flagUpdatePID = true;
+}
+
+void send_log(){
+  flags.flagSendLog = true;
+}
+
+
+
+// PID structure holder
+pid_controller_t sample_zone;
+pid_controller_t valve_zone;
+
+// Reinit Controller based on STATE MACHINE
+void pid_init(pid_controller_t &pid, CONTROL pid_settings){
+  pid_controller_init(
+    &pid, 
+    pid_settings.setpoint,
+    pid_settings.kp,
+    pid_settings.ki,
+    pid_settings.kd,
+    ATTINY_8BIT_PWM_MAX);
+}
+
+void setup() {
+
+  data.state = low_power;
+
+  #if defined(HEATER_TEST_BED_V1)
+    //Serial.pins(TX_CDC,RX_CDC);
+  #endif
+  Serial.begin(9600);
+  delay(10);
+  Serial.println("Startup");
+
+  //INIT peripherial I/O
+  pinMode(LED, OUTPUT);
+  pinMode(PIN_BUTTON_BUILTIN, INPUT);
+
+  // INIT PWM I/O
+  pinMode(SH_CTRL,OUTPUT);
+  pinMode(VH_CTRL,OUTPUT);
+
+  // INIT temperature sensor I/O
+  TMP1.set_analog_pin(SH_ADC_PIN);
+  TMP2.set_analog_pin(VH_ADC_PIN);
+  TMP1.set_adc_reference();
+  TMP2.set_adc_reference();
+
+  // INIT PID Structure
+  pid_init(sample_zone,sample_amp_control[data.state]);
+  pid_init(valve_zone,valve_amp_control[data.state]);
+
+  // attaches PULL-UP and INTERUPT on FALLING EDGE
+  PORTC.PIN4CTRL = PORT_PULLUPEN_bm | PORT_ISC_FALLING_gc;
+
+  // instantiate timer oject
+  CurrentTimer.init();
+
+
+  tickTimerNumber = ISR_Timer1.setInterval(tickISRTimer.TimerInterval,tickISRTimer.irqCallbackFunc);  
+  ISR_Timer1.setInterval(pidISRTimerData.TimerInterval,pidISRTimerData.irqCallbackFunc);  
+  ISR_Timer1.setInterval(temperatureISRTimer.TimerInterval,temperatureISRTimer.irqCallbackFunc);  
+  ISR_Timer1.setInterval(logISRTimer.TimerInterval,logISRTimer.irqCallbackFunc);  
+
+  // initally disable TICK timer
+  ISR_Timer1.disable(tickTimerNumber);
+}
+
+void loop() {
+  ISR_Timer1.run();
+ 
+  if (interrupt1) {
+    /*
+    START TEST!
+    ENABLE tickISRTimer
+    */
+    Serial.println("I1 fired");
+    interrupt1 = 0;
+    led_value = (led_value + 25) % 255;
+    analogWrite(LED, led_value);
+
+    // start TICK
+    if (ISR_Timer1.isEnabled(tickTimerNumber)){
+      ISR_Timer1.restartTimer(tickTimerNumber);
+    } else {
+      ISR_Timer1.enable(tickTimerNumber);
+    }
+    data.time_ticker = 0;
+    tickISRTimer.previousMillis = millis();
+
+    // start state machine
+    //data.state = amplification;
+  }
+
+  //if (data.state != low_power ISR_Timer1.isEnabled(tickTimerNumber)) {
+  if (ISR_Timer1.isEnabled(tickTimerNumber)){
+    /*ENTER STATE MACHINE*/
+    // update TIME handlers
+    unsigned long currentMillis  = millis();
+    tickISRTimer.deltaMillis = currentMillis - tickISRTimer.previousMillis;
+
+    if ((tickISRTimer.deltaMillis / 60000) >= AMPLIFICATION_TIME_MIN) {
+      if ((tickISRTimer.deltaMillis / 60000) >= AMPLIFICATION_TIME_MIN + ACUTATION_TIME_MIN) {
+        // in detection
+        if (data.state != detection) {
+            data.state = detection;
+            pid_init(sample_zone,sample_amp_control[data.state]);
+            pid_init(valve_zone,valve_amp_control[data.state]);
+        }
+        if ((tickISRTimer.deltaMillis / 60000)  >= AMPLIFICATION_TIME_MIN + ACUTATION_TIME_MIN + DETECTION_TIME_MIN) {
+          // final state -- END
+          if (data.state != low_power) {
+            // SHUT DOWN LOADS!!!!
+            data.state = low_power;
+            pid_init(sample_zone,sample_amp_control[data.state]);
+            pid_init(valve_zone,valve_amp_control[data.state]);
+            ISR_Timer1.disable(tickTimerNumber);
+
+          }
+        }
+      } else {
+        // in actuation ( 35 > TIME > 30)
+        if (data.state != actuation) {
+          data.state = actuation;
+          pid_init(sample_zone,sample_amp_control[data.state]);
+          pid_init(valve_zone,valve_amp_control[data.state]);
+        }
+      }
+      
+    } else {
+      // in Amplification (ie < 30)
+      if (data.state != amplification) {
+        data.state = amplification;
+        pid_init(sample_zone,sample_amp_control[data.state]);
+        pid_init(valve_zone,valve_amp_control[data.state]);
+      }
+    }
+  }
+
+  /*UPDATE INPUT::SENSORS*/
+  if (flags.flagUpdateTemperature){
+    flags.flagUpdateTemperature = false;
+    data.sample_temperature_c = TMP1.read_temperature_C();
+    data.valve_temperature_c = TMP2.read_temperature_C();
+
+  }
+
+  /*UPDATE LOAD OUTPUT*/
+  if (flags.flagUpdatePID) {
+    flags.flagUpdatePID = false;
+    
+    //compute(&sample_zone,data.sample_temperature_c);
+    pid_controller_compute(&sample_zone,data.sample_temperature_c);
+    pid_controller_compute(&valve_zone,data.valve_temperature_c);
+   
+    analogWrite(SH_CTRL,sample_zone.out);
+    analogWrite(VH_CTRL,valve_zone.out);
+
+    data.sample_heater_pwm_value = sample_zone.out;
+    data.valve_heater_pwm_value = valve_zone.out;
+  }
+
+  /*UPDATE LOG*/
+  if (flags.flagSendLog) {
+    flags.flagSendLog = false;
+    
+    Serial.println((String)data.time_ticker + ", " +
+      tickISRTimer.deltaMillis + ", " + 
+      data.sample_temperature_c + ", "+ 
+      sample_zone.setpoint + ", " +
+      data.sample_heater_pwm_value + ", "  +
+      data.valve_temperature_c + ", " +
+      valve_zone.setpoint + ", " +
+      data.valve_heater_pwm_value + ", " +
+      data.battery_voltage + ", " +
+      data.state
+      );
+  } // LOG
+} // LOOP
+
+
+// ISR, PORTC
+ISR(PORTC_PORT_vect)
+{
+    // clear ISR Flags
+    uint8_t intflags = PORTC.INTFLAGS;
+    PORTC.INTFLAGS = intflags;
+
+    // trigger APP flags
+    if (intflags & 0x10) {
+      interrupt1 = 1;
+    }
+}
