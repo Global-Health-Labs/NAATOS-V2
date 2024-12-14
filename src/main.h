@@ -21,8 +21,11 @@
 #if (board == ATtiny1607)
   #define CURIOSITY_ATTINY1607
 #endif
-#if (board == ATtiny1604)
+#if (env == ATtiny1604_test_bed )
   #define HEATER_TEST_BED_V1
+#endif
+#if (env == ATtiny1604_mk_gen_atmelIce)
+  #define BOARD_CONFIG_MK_GENERATION
 #endif
 #if !( defined(DXCORE) || defined(MEGATINYCORE) )
   #error This is designed only for DXCORE or MEGATINYCORE megaAVR board! Please check your Tools->Board setting
@@ -62,7 +65,6 @@
   #if defined(ARDUINO_AVR_CuriosityNano3217) 
     #define LED_BUILTIN   PIN_PA3
   #else
-    // standard Arduino pin 13
     #define LED_BUILTIN   PIN_PA3
   #endif
 #endif
@@ -88,6 +90,19 @@
   #define VH_ADC_PIN PIN_PA6
   //#define TX_CDC PIN_PB3
   //#define RX_CDC PIN_PB2
+  #define SerialDebug         Serial
+#endif
+#if defined(BOARD_CONFIG_MK_GENERATION)
+  #define VIN_SENSE     PIN_PA1
+  #define LED           PIN_PA2
+  #define LED1          PIN_PA3
+
+  #define SH_CTRL PIN_PA4
+  #define VH_CTRL PIN_PA5
+  #define SH_ADC_PIN PIN_PA7
+  #define VH_ADC_PIN PIN_PA6
+  // PIN_PB0  --> wired but currently not used
+  // PIN_PB1
   #define SerialDebug         Serial
 #endif
 

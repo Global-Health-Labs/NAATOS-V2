@@ -20,6 +20,7 @@ TIMERS:
 #include "app_data.h"
 #include "state_machine.h"
 #include "pid.h"
+#include "utils.h"
 // To be included only in main(), .ino with setup() to avoid `Multiple Definitions` Linker Error
 #include "ATtiny_TimerInterrupt.h"
 
@@ -122,6 +123,8 @@ void setup() {
   Serial.begin(9600);
   delay(10);
   Serial.println("Startup");
+  check_reset_cause();
+
 
   //INIT peripherial I/O
   pinMode(LED, OUTPUT);
@@ -155,6 +158,16 @@ void setup() {
 
   // initally disable TICK timer
   ISR_Timer1.disable(tickTimerNumber);
+
+
+  // start TICK
+  if (ISR_Timer1.isEnabled(tickTimerNumber)){
+    ISR_Timer1.restartTimer(tickTimerNumber);
+  } else {
+    ISR_Timer1.enable(tickTimerNumber);
+  }
+  data.time_ticker = 0;
+  tickISRTimer.previousMillis = millis();
 }
 
 void loop() {
