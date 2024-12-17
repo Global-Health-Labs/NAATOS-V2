@@ -3,21 +3,44 @@
 
 #include "Arduino.h"
 
-#define AMPLIFICATION_TIME_MIN          2
+#define AMPLIFICATION_TIME_MIN          15
 #define ACUTATION_TIME_MIN              5
 #define DETECTION_TIME_MIN              1
 
+
+#ifdef mk1_1_variant
+#endif
+
+#ifdef mk2_variant
+#define SAMPLE_ZONE_AMP_SOAK_TARGET_C   65
+#define VALVE_ZONE_AMP_SOAK_TARGET_C    70
+#define SAMPLE_ZONE_VALVE_SOAK_TARGET_C 65
+#define VALVE_ZONE_VALVE_SOAK_TARGET_C  97
+#define HEATER_SHUTDOWN_C               0
+#endif
+
+#ifdef mk3_variant
+#endif
+
+// default values (bare board setup)
+#ifndef SAMPLE_ZONE_AMP_SOAK_TARGET_C
 #define SAMPLE_ZONE_AMP_SOAK_TARGET_C   65
 #define VALVE_ZONE_AMP_SOAK_TARGET_C    65
 #define SAMPLE_ZONE_VALVE_SOAK_TARGET_C 65
-#define VALVE_ZONE_VALVE_SOAK_TARGET_C  80
+#define VALVE_ZONE_VALVE_SOAK_TARGET_C  90
 #define HEATER_SHUTDOWN_C               0
+
+#endif
+
 
 // Timer related
 #define TICK_TIMER_INTERVAL             60000L
 #define PID_TIMER_INTERVAL              500L
 #define TEMPERATURE_TIMER_INTERVAL      100L
 #define LOGGING_TIMER_INTERVAL          1000L
+#define LED_TIMER_INTERVAL              200L
+
+#define STARTUP_DELAY_MS                5000L
 
 #define ATTINY_8BIT_PWM_MAX             255
 
@@ -53,6 +76,8 @@ struct flags_t {
     volatile bool flagUpdateTemperature = false;
     volatile bool flagUpdatePID = false;
     volatile bool flagSendLog = false;
+    volatile bool flagUpdateLed = false;
+    volatile bool flagDelayedStart = false;
 } flags;
 
 typedef void (*irqCallback) ();
