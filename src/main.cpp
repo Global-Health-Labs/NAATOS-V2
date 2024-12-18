@@ -1,7 +1,3 @@
-
-
-
-
 /*
 
 TIMERS:
@@ -69,6 +65,8 @@ void update_start();
 ISR_Timer ISR_Timer1;
 int tickTimerNumber;
 int ledTimerNumber;
+int delayStartNumber;
+
 // tickISRTimer handles MILLIS counter used for time keeping
 ISRTimerData tickISRTimer = {update_ticker,  TICK_TIMER_INTERVAL, 0,  0};
 
@@ -176,10 +174,11 @@ void setup() {
   ISR_Timer1.setInterval(pidISRTimerData.TimerInterval,pidISRTimerData.irqCallbackFunc);  
   ISR_Timer1.setInterval(temperatureISRTimer.TimerInterval,temperatureISRTimer.irqCallbackFunc);  
   ISR_Timer1.setInterval(logISRTimer.TimerInterval,logISRTimer.irqCallbackFunc);  
-  //ledTimerNumber = ISR_Timer1.setInterval(LedISRTimer.TimerInterval,LedISRTimer.irqCallbackFunc);
   //ISR_Timer1.setTimer(LedISRTimer.TimerInterval,LedISRTimer.irqCallbackFunc,25);
-  ISR_Timer1.setTimer(delaystartISRTimer.TimerInterval,delaystartISRTimer.irqCallbackFunc,1);
+  delayStartNumber = ISR_Timer1.setInterval(delaystartISRTimer.TimerInterval,delaystartISRTimer.irqCallbackFunc);  
+  //ISR_Timer1.setTimer(delaystartISRTimer.TimerInterval,delaystartISRTimer.irqCallbackFunc,1);
   
+  ledTimerNumber = ISR_Timer1.setInterval(LedISRTimer.TimerInterval,LedISRTimer.irqCallbackFunc);
 
   // initally disable TICK timer
   ISR_Timer1.disable(tickTimerNumber);
@@ -226,25 +225,32 @@ void loop() {
   #endif
 
   if (flags.flagDelayedStart) {
+    // reset flag
     flags.flagDelayedStart = false;
+    flags.flagUpdateLed = false;
+    // disable TIMERs
+    ISR_Timer1.disable(delayStartNumber);
+    ISR_Timer1.disable(ledTimerNumber);
 
+    // enable STATE MACHINE TIMER
     if (ISR_Timer1.isEnabled(tickTimerNumber)){
       ISR_Timer1.restartTimer(tickTimerNumber);
     } else {
       ISR_Timer1.enable(tickTimerNumber);
     }
+
+    // Change UI
     digitalWrite(LED,false);
-    //ISR_Timer1.disable(ledTimerNumber);
+    
     digitalWrite(LED1,true);
 
-   
+    // Update STATE MACHINE counter for timekeeping
     data.time_ticker = 0;
     tickISRTimer.previousMillis = millis();
 
   }
   
 
-  //if (data.state != low_power ISR_Timer1.isEnabled(tickTimerNumber)) {
   if (ISR_Timer1.isEnabled(tickTimerNumber)){
     /*ENTER STATE MACHINE*/
     // update TIME handlers
@@ -290,7 +296,7 @@ void loop() {
     }
   }
 
-  /*UPDATE INPUT::SENSORS*/
+  /*UPDATE INPUT::TEMPERATURE SENSORS*/
   if (flags.flagUpdateTemperature){
     flags.flagUpdateTemperature = false;
     data.sample_temperature_c = TMP1.read_temperature_C();
@@ -298,7 +304,7 @@ void loop() {
 
   }
 
-  /*UPDATE LOAD OUTPUT*/
+  /*UPDATE OUTPUT:HEATER LOAD*/
   if (flags.flagUpdatePID) {
     flags.flagUpdatePID = false;
     
@@ -319,24 +325,28 @@ void loop() {
     digitalWrite(LED1,!digitalRead(LED1));
   }
 
-  /*UPDATE LOG*/
+  /*UPDATE LOG::Serial COMM*/
   if (flags.flagSendLog) {
     flags.flagSendLog = false;
-    
-    Serial.println((String)
-      tickISRTimer.deltaMillis + ", " + 
-      data.sample_temperature_c + ", "+ 
-      sample_zone.setpoint + ", " +
-      data.sample_heater_pwm_value + ", "  +
-      data.valve_temperature_c + ", " +
-      valve_zone.setpoint + ", " +
-      data.valve_heater_pwm_value + ", " +
-      data.battery_voltage + ", " +
-      data.state
-      );
+
+    Serial.print(tickISRTimer.deltaMillis);
+    Serial.print(F(", "));
+    Serial.print(data.sample_temperature_c);
+    Serial.print(F(", "));
+    Serial.print(sample_zone.setpoint);
+    Serial.print(F(", "));
+    Serial.print(data.sample_heater_pwm_value);
+    Serial.print(F(", "));
+    Serial.print(data.valve_temperature_c);
+    Serial.print(F(", "));
+    Serial.print(valve_zone.setpoint);
+    Serial.print(F(", "));
+    Serial.print(data.valve_heater_pwm_value);
+    Serial.print(F(", "));
+    Serial.print(data.battery_voltage);
+    Serial.print(F(", "));
+    Serial.println(data.state);
   }
-  
-   // LOG
 } // LOOP
 
 #if board == ATtiny1607

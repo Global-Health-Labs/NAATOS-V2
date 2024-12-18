@@ -8,29 +8,27 @@
 #define DETECTION_TIME_MIN              1
 
 
-#ifdef mk1_1_variant
-#endif
+/*MK Generation Calibration CONST*/
+#ifdef BOARDCONFIG_MK1_1
 
-#ifdef mk2_variant
-#define SAMPLE_ZONE_AMP_SOAK_TARGET_C   65
+#elif #defined(BOARDCONFIG_MK2)
+#define SAMPLE_ZONE_AMP_SOAK_TARGET_C   68
 #define VALVE_ZONE_AMP_SOAK_TARGET_C    70
-#define SAMPLE_ZONE_VALVE_SOAK_TARGET_C 65
-#define VALVE_ZONE_VALVE_SOAK_TARGET_C  97
+#define SAMPLE_ZONE_VALVE_SOAK_TARGET_C 68
+#define VALVE_ZONE_VALVE_SOAK_TARGET_C  101
 #define HEATER_SHUTDOWN_C               0
-#endif
+#elif #defined(BOARDCONFIG_MK3)
 
-#ifdef mk3_variant
-#endif
-
-// default values (bare board setup)
-#ifndef SAMPLE_ZONE_AMP_SOAK_TARGET_C
+#elif #defined(BOARDCONFIG_MK4)
+#else
+// DEFAULT-should work with all other env builds
 #define SAMPLE_ZONE_AMP_SOAK_TARGET_C   65
 #define VALVE_ZONE_AMP_SOAK_TARGET_C    65
 #define SAMPLE_ZONE_VALVE_SOAK_TARGET_C 65
 #define VALVE_ZONE_VALVE_SOAK_TARGET_C  90
 #define HEATER_SHUTDOWN_C               0
-
 #endif
+/*MK Generation Calibration CONST*/
 
 
 // Timer related
