@@ -11,16 +11,17 @@
 /*MK Generation Calibration CONST*/
 #ifdef BOARDCONFIG_MK1_1
 
-#elif #defined(BOARDCONFIG_MK2)
+#elif defined(BOARDCONFIG_MK2)
 #define SAMPLE_ZONE_AMP_SOAK_TARGET_C   68
 #define VALVE_ZONE_AMP_SOAK_TARGET_C    70
 #define SAMPLE_ZONE_VALVE_SOAK_TARGET_C 68
 #define VALVE_ZONE_VALVE_SOAK_TARGET_C  101
 #define HEATER_SHUTDOWN_C               0
-#elif #defined(BOARDCONFIG_MK3)
+#elif defined(BOARDCONFIG_MK3)
 
-#elif #defined(BOARDCONFIG_MK4)
+#elif defined(BOARDCONFIG_MK4)
 #else
+
 // DEFAULT-should work with all other env builds
 #define SAMPLE_ZONE_AMP_SOAK_TARGET_C   65
 #define VALVE_ZONE_AMP_SOAK_TARGET_C    65
