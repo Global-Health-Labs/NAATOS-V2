@@ -15,13 +15,22 @@
 #define SAMPLE_ZONE_VALVE_SOAK_TARGET_C 68
 #define VALVE_ZONE_VALVE_SOAK_TARGET_C  97
 #define HEATER_SHUTDOWN_C               0
+#define SLEW_RATE_LIMIT                 255
 #elif defined(BOARDCONFIG_MK2)
 #define SAMPLE_ZONE_AMP_SOAK_TARGET_C   68
 #define VALVE_ZONE_AMP_SOAK_TARGET_C    70
 #define SAMPLE_ZONE_VALVE_SOAK_TARGET_C 68
 #define VALVE_ZONE_VALVE_SOAK_TARGET_C  101
 #define HEATER_SHUTDOWN_C               0
+#define SLEW_RATE_LIMIT                 255
 #elif defined(BOARDCONFIG_MK3)
+
+#define SAMPLE_ZONE_AMP_SOAK_TARGET_C   68
+#define VALVE_ZONE_AMP_SOAK_TARGET_C    70
+#define SAMPLE_ZONE_VALVE_SOAK_TARGET_C 68
+#define VALVE_ZONE_VALVE_SOAK_TARGET_C  101
+#define HEATER_SHUTDOWN_C               0
+#define SLEW_RATE_LIMIT                 255
 
 #elif defined(BOARDCONFIG_MK4)
 #else
@@ -32,6 +41,7 @@
 #define SAMPLE_ZONE_VALVE_SOAK_TARGET_C 65
 #define VALVE_ZONE_VALVE_SOAK_TARGET_C  90
 #define HEATER_SHUTDOWN_C               0
+#define SLEW_RATE_LIMIT                 255
 #endif
 /*MK Generation Calibration CONST*/
 

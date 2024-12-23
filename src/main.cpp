@@ -124,7 +124,8 @@ void pid_init(pid_controller_t &pid, CONTROL pid_settings){
     pid_settings.kp,
     pid_settings.ki,
     pid_settings.kd,
-    ATTINY_8BIT_PWM_MAX);
+    ATTINY_8BIT_PWM_MAX,
+    SLEW_RATE_LIMIT);
 }
 
 void setup() {
@@ -233,12 +234,13 @@ void loop() {
     ISR_Timer1.disable(ledTimerNumber);
 
     // enable STATE MACHINE TIMER
+    
     if (ISR_Timer1.isEnabled(tickTimerNumber)){
       ISR_Timer1.restartTimer(tickTimerNumber);
     } else {
       ISR_Timer1.enable(tickTimerNumber);
     }
-
+  
     // Change UI
     digitalWrite(LED,false);
     

@@ -18,6 +18,7 @@ typedef struct {
   /* Output Limits */
   float lim_max;
   float lim_min;
+  float slew_rate;
   /* Controller */
   float intergrator;
   float prevMesurement;
@@ -34,7 +35,7 @@ typedef struct {
   
 } pid_controller_t;
 
-void pid_controller_init(pid_controller_t *pid, float setpoint, float k_p, float k_i, float k_d, int pid_max);
+void pid_controller_init(pid_controller_t *pid, float setpoint, float k_p, float k_i, float k_d, int pid_max, float slew_rate);
 void pid_controller_compute(pid_controller_t *pid, float measurement);
 bool compute(pid_controller_t *pid, float measurement);
 #endif
