@@ -27,11 +27,6 @@
 #if (env == ATtiny1604_mk_gen_atmelIce)
   #define BOARD_CONFIG_MK_GENERATION
 
-  /* For now, MANUALLY define board level variant*/
-  //#define mk1_1_variant
-  #define mk2_variant
-  //#define mk3_variant
-
 #endif
 #if !( defined(DXCORE) || defined(MEGATINYCORE) )
   #error This is designed only for DXCORE or MEGATINYCORE megaAVR board! Please check your Tools->Board setting

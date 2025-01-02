@@ -17,6 +17,7 @@ TIMERS:
 #include "state_machine.h"
 #include "pid.h"
 #include "utils.h"
+
 // To be included only in main(), .ino with setup() to avoid `Multiple Definitions` Linker Error
 #include "ATtiny_TimerInterrupt.h"
 
@@ -31,15 +32,15 @@ TIMERS:
 CONTROL sample_amp_control[numProcess] = 
 {
   {HEATER_SHUTDOWN_C, 0, 0, 2, 1, .5},
-  {SAMPLE_ZONE_AMP_SOAK_TARGET_C, 0,0, 3,1,.5},
-  {SAMPLE_ZONE_VALVE_SOAK_TARGET_C, 0, 0, 3, 1, .5},
+  {SAMPLE_ZONE_AMP_SOAK_TARGET_C, 0,0, 29.75, 0.083,0.333},
+  {SAMPLE_ZONE_VALVE_SOAK_TARGET_C, 0, 0, 29.75, 0.083,0.333},
   {HEATER_SHUTDOWN_C, 0, 0, 2, 5, 1}
 };
 CONTROL valve_amp_control[numProcess] = 
 {
   {HEATER_SHUTDOWN_C, 0, 0, 0, 0, 0},
-  {VALVE_ZONE_AMP_SOAK_TARGET_C, 0,0, 2,1,.5},
-  {VALVE_ZONE_VALVE_SOAK_TARGET_C,0, 0, 2, 1, .5},
+  {VALVE_ZONE_AMP_SOAK_TARGET_C, 0,0, 14.92, 0.083, 0.333},
+  {VALVE_ZONE_VALVE_SOAK_TARGET_C,0, 0, 14.92, 0.083, 0.333},
   {HEATER_SHUTDOWN_C, 0, 0, 0, 0, 0}
 };
 
@@ -128,6 +129,8 @@ void pid_init(pid_controller_t &pid, CONTROL pid_settings){
     SLEW_RATE_LIMIT);
 }
 
+const char startupMsg[] PROGMEM = "Startup";
+
 void setup() {
 
   // initalize STATE MACHINE
@@ -136,7 +139,7 @@ void setup() {
   Serial.begin(9600);
   delay(10);
 
-  Serial.println("Startup");
+  Serial.println(startupMsg);
   check_reset_cause();
 
 
@@ -183,172 +186,163 @@ void setup() {
 
   // initally disable TICK timer
   ISR_Timer1.disable(tickTimerNumber);
-
-
- // start TICK automatically
-  // if (ISR_Timer1.isEnabled(tickTimerNumber)){
-  //   ISR_Timer1.restartTimer(tickTimerNumber);
-  // } else {
-  //   ISR_Timer1.enable(tickTimerNumber);
-  // }
-  // data.time_ticker = 0;
-  // tickISRTimer.previousMillis = millis();
 }
 
 void loop() {
-  ISR_Timer1.run();
 
-  #if board == ATtiny1607
-  // button based START TIMER
-  if (interrupt1) {
-    // required for use with TEST BED UNITS with BUTTONS
-    /*
-    START TEST!
-    ENABLE tickISRTimer
-    */
-    Serial.println("I1 fired");
-    interrupt1 = 0;
-    led_value = (led_value + 25) % 255;
-    analogWrite(LED, led_value);
+    ISR_Timer1.run();
 
-    // start TICK
-    if (ISR_Timer1.isEnabled(tickTimerNumber)){
-      ISR_Timer1.restartTimer(tickTimerNumber);
-    } else {
-      ISR_Timer1.enable(tickTimerNumber);
+    #if board == ATtiny1607
+    // button based START TIMER
+    if (interrupt1) {
+      // required for use with TEST BED UNITS with BUTTONS
+      /*
+      START TEST!
+      ENABLE tickISRTimer
+      */
+      Serial.println("I1 fired");
+      interrupt1 = 0;
+      led_value = (led_value + 25) % 255;
+      analogWrite(LED, led_value);
+
+      // start TICK
+      if (ISR_Timer1.isEnabled(tickTimerNumber)){
+        ISR_Timer1.restartTimer(tickTimerNumber);
+      } else {
+        ISR_Timer1.enable(tickTimerNumber);
+      }
+      data.time_ticker = 0;
+      tickISRTimer.previousMillis = millis();
+
+      // start state machine
+      //data.state = amplification;
     }
-    data.time_ticker = 0;
-    tickISRTimer.previousMillis = millis();
+    #endif
 
-    // start state machine
-    //data.state = amplification;
-  }
-  #endif
+    if (flags.flagDelayedStart) {
+      // reset flag
+      flags.flagDelayedStart = false;
+      flags.flagUpdateLed = false;
+      // disable TIMERs
+      ISR_Timer1.disable(delayStartNumber);
+      ISR_Timer1.disable(ledTimerNumber);
 
-  if (flags.flagDelayedStart) {
-    // reset flag
-    flags.flagDelayedStart = false;
-    flags.flagUpdateLed = false;
-    // disable TIMERs
-    ISR_Timer1.disable(delayStartNumber);
-    ISR_Timer1.disable(ledTimerNumber);
-
-    // enable STATE MACHINE TIMER
+      // enable STATE MACHINE TIMER
+      
+      if (ISR_Timer1.isEnabled(tickTimerNumber)){
+        ISR_Timer1.restartTimer(tickTimerNumber);
+      } else {
+        ISR_Timer1.enable(tickTimerNumber);
+      }
     
-    if (ISR_Timer1.isEnabled(tickTimerNumber)){
-      ISR_Timer1.restartTimer(tickTimerNumber);
-    } else {
-      ISR_Timer1.enable(tickTimerNumber);
+      // Change UI
+      digitalWrite(LED,false);
+      
+      digitalWrite(LED1,true);
+
+      // Update STATE MACHINE counter for timekeeping
+      data.time_ticker = 0;
+      tickISRTimer.previousMillis = millis();
+
     }
-  
-    // Change UI
-    digitalWrite(LED,false);
     
-    digitalWrite(LED1,true);
 
-    // Update STATE MACHINE counter for timekeeping
-    data.time_ticker = 0;
-    tickISRTimer.previousMillis = millis();
+    if (ISR_Timer1.isEnabled(tickTimerNumber)){
+      /*ENTER STATE MACHINE*/
+      // update TIME handlers
+      unsigned long currentMillis  = millis();
+      tickISRTimer.deltaMillis = currentMillis - tickISRTimer.previousMillis;
 
-  }
-  
+      if ((tickISRTimer.deltaMillis / 60000) >= AMPLIFICATION_TIME_MIN) {
+        if ((tickISRTimer.deltaMillis / 60000) >= AMPLIFICATION_TIME_MIN + ACUTATION_TIME_MIN) {
+          // in detection
+          if (data.state != detection) {
+              data.state = detection;
+              pid_init(sample_zone,sample_amp_control[data.state]);
+              pid_init(valve_zone,valve_amp_control[data.state]);
+          }
+          if ((tickISRTimer.deltaMillis / 60000)  >= AMPLIFICATION_TIME_MIN + ACUTATION_TIME_MIN + DETECTION_TIME_MIN) {
+            // final state -- END
+            if (data.state != low_power) {
+              // SHUT DOWN LOADS!!!!
+              data.state = low_power;
+              pid_init(sample_zone,sample_amp_control[data.state]);
+              pid_init(valve_zone,valve_amp_control[data.state]);
+              ISR_Timer1.disable(tickTimerNumber);
 
-  if (ISR_Timer1.isEnabled(tickTimerNumber)){
-    /*ENTER STATE MACHINE*/
-    // update TIME handlers
-    unsigned long currentMillis  = millis();
-    tickISRTimer.deltaMillis = currentMillis - tickISRTimer.previousMillis;
-
-    if ((tickISRTimer.deltaMillis / 60000) >= AMPLIFICATION_TIME_MIN) {
-      if ((tickISRTimer.deltaMillis / 60000) >= AMPLIFICATION_TIME_MIN + ACUTATION_TIME_MIN) {
-        // in detection
-        if (data.state != detection) {
-            data.state = detection;
+              digitalWrite(LED,true);
+            }
+          }
+        } else {
+          // in actuation ( 35 > TIME > 30)
+          if (data.state != actuation) {
+            data.state = actuation;
             pid_init(sample_zone,sample_amp_control[data.state]);
             pid_init(valve_zone,valve_amp_control[data.state]);
-        }
-        if ((tickISRTimer.deltaMillis / 60000)  >= AMPLIFICATION_TIME_MIN + ACUTATION_TIME_MIN + DETECTION_TIME_MIN) {
-          // final state -- END
-          if (data.state != low_power) {
-            // SHUT DOWN LOADS!!!!
-            data.state = low_power;
-            pid_init(sample_zone,sample_amp_control[data.state]);
-            pid_init(valve_zone,valve_amp_control[data.state]);
-            ISR_Timer1.disable(tickTimerNumber);
-
-            digitalWrite(LED,true);
           }
         }
+        
       } else {
-        // in actuation ( 35 > TIME > 30)
-        if (data.state != actuation) {
-          data.state = actuation;
+        // in Amplification (ie < 30)
+        if (data.state != amplification) {
+          data.state = amplification;
           pid_init(sample_zone,sample_amp_control[data.state]);
           pid_init(valve_zone,valve_amp_control[data.state]);
         }
       }
-      
-    } else {
-      // in Amplification (ie < 30)
-      if (data.state != amplification) {
-        data.state = amplification;
-        pid_init(sample_zone,sample_amp_control[data.state]);
-        pid_init(valve_zone,valve_amp_control[data.state]);
-      }
     }
-  }
 
-  /*UPDATE INPUT::TEMPERATURE SENSORS*/
-  if (flags.flagUpdateTemperature){
-    flags.flagUpdateTemperature = false;
-    data.sample_temperature_c = TMP1.read_temperature_C();
-    data.valve_temperature_c = TMP2.read_temperature_C();
+    /*UPDATE INPUT::TEMPERATURE SENSORS*/
+    if (flags.flagUpdateTemperature){
+      flags.flagUpdateTemperature = false;
+      data.sample_temperature_c = TMP1.read_temperature_C();
+      data.valve_temperature_c = TMP2.read_temperature_C();
 
-  }
+    }
 
-  /*UPDATE OUTPUT:HEATER LOAD*/
-  if (flags.flagUpdatePID) {
-    flags.flagUpdatePID = false;
+    /*UPDATE OUTPUT:HEATER LOAD*/
+    if (flags.flagUpdatePID) {
+      flags.flagUpdatePID = false;
+      
+      //compute(&sample_zone,data.sample_temperature_c);
+      pid_controller_compute(&sample_zone,data.sample_temperature_c);
+      pid_controller_compute(&valve_zone,data.valve_temperature_c);
     
-    //compute(&sample_zone,data.sample_temperature_c);
-    pid_controller_compute(&sample_zone,data.sample_temperature_c);
-    pid_controller_compute(&valve_zone,data.valve_temperature_c);
-   
-    analogWrite(SH_CTRL,sample_zone.out);
-    analogWrite(VH_CTRL,valve_zone.out);
+      analogWrite(SH_CTRL,sample_zone.out);
+      analogWrite(VH_CTRL,valve_zone.out);
 
-    data.sample_heater_pwm_value = sample_zone.out;
-    data.valve_heater_pwm_value = valve_zone.out;
-  }
+      data.sample_heater_pwm_value = sample_zone.out;
+      data.valve_heater_pwm_value = valve_zone.out;
+    }
 
-  /*UPDATE LED1*/
-  if (flags.flagUpdateLed) {
-    flags.flagUpdateLed = false;
-    digitalWrite(LED1,!digitalRead(LED1));
-  }
+    /*UPDATE LED1*/
+    if (flags.flagUpdateLed) {
+      flags.flagUpdateLed = false;
+      digitalWrite(LED1,!digitalRead(LED1));
+    }
 
-  /*UPDATE LOG::Serial COMM*/
-  if (flags.flagSendLog) {
-    flags.flagSendLog = false;
+    /*UPDATE LOG::Serial COMM*/
+    if (flags.flagSendLog) {
+      flags.flagSendLog = false;
 
-    Serial.print(tickISRTimer.deltaMillis);
-    Serial.print(F(", "));
-    Serial.print(data.sample_temperature_c);
-    Serial.print(F(", "));
-    Serial.print(sample_zone.setpoint);
-    Serial.print(F(", "));
-    Serial.print(data.sample_heater_pwm_value);
-    Serial.print(F(", "));
-    Serial.print(data.valve_temperature_c);
-    Serial.print(F(", "));
-    Serial.print(valve_zone.setpoint);
-    Serial.print(F(", "));
-    Serial.print(data.valve_heater_pwm_value);
-    Serial.print(F(", "));
-    Serial.print(data.battery_voltage);
-    Serial.print(F(", "));
-    Serial.println(data.state);
-  }
+      Serial.print(tickISRTimer.deltaMillis);
+      Serial.print(F(", "));
+      Serial.print(data.sample_temperature_c);
+      Serial.print(F(", "));
+      Serial.print(sample_zone.setpoint);
+      Serial.print(F(", "));
+      Serial.print(data.sample_heater_pwm_value);
+      Serial.print(F(", "));
+      Serial.print(data.valve_temperature_c);
+      Serial.print(F(", "));
+      Serial.print(valve_zone.setpoint);
+      Serial.print(F(", "));
+      Serial.print(data.valve_heater_pwm_value);
+      Serial.print(F(", "));
+      Serial.print(data.battery_voltage);
+      Serial.print(F(", "));
+      Serial.println(data.state);
+    }
 } // LOOP
 
 #if board == ATtiny1607
