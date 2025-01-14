@@ -299,9 +299,25 @@ void loop() {
     /*UPDATE INPUT::TEMPERATURE SENSORS*/
     if (flags.flagUpdateTemperature){
       flags.flagUpdateTemperature = false;
+
+      // Disable the PWM outputs during the temperature and ADC measurements.
+      // The current spikes on the heaters interfere with the temperature sensors.
+
+      if (sample_zone.out < 25) {
+        analogWrite(SH_CTRL,0);
+        analogWrite(VH_CTRL,0);
+      } else {
+        analogWrite(SH_CTRL,0xFF);
+        analogWrite(VH_CTRL,0xFF);
+      }
+
+      data.sample_temperature_c = TMP1.read_temperature_C();
       data.sample_temperature_c = TMP1.read_temperature_C();
       data.valve_temperature_c = TMP2.read_temperature_C();
       data.battery_voltage = TMP2.read_supply_voltage();
+
+      analogWrite(SH_CTRL,sample_zone.out);
+      analogWrite(VH_CTRL,valve_zone.out);
     }
 
     /*UPDATE OUTPUT:HEATER LOAD*/

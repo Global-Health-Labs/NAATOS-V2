@@ -7,7 +7,7 @@
 #define ACUTATION_TIME_MIN              5
 #define DETECTION_TIME_MIN              1
 
-#define FW_VERSION_STR                  "FW:v0.1"
+#define FW_VERSION_STR                  "FW:v0.2"
 
 /*MK Generation Calibration CONST*/
 #ifdef BOARDCONFIG_MK1_1
