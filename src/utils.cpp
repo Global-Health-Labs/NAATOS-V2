@@ -3,7 +3,10 @@
 
 void check_reset_cause(){
     uint8_t reset_flags = RSTCTRL.RSTFR;
-    Serial.println("checking reset cause...");
+    Serial.println("Reset cause:");
+    Serial.print(reset_flags, 16);    
+    Serial.println("");
+    /*
     if (reset_flags & RSTCTRL_UPDIRF_bm) {
         Serial.println("Reset by UPDI (code just upoloaded now)");
     }
@@ -22,5 +25,5 @@ void check_reset_cause(){
     if (reset_flags & RSTCTRL_PORF_bm) {
         Serial.println("Reset by power on");
     }
-    
+    */    
 }

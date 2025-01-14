@@ -7,6 +7,7 @@
 #define ACUTATION_TIME_MIN              5
 #define DETECTION_TIME_MIN              1
 
+#define FW_VERSION_STR                  "FW:v0.1"
 
 /*MK Generation Calibration CONST*/
 #ifdef BOARDCONFIG_MK1_1
@@ -16,6 +17,7 @@
 #define VALVE_ZONE_VALVE_SOAK_TARGET_C  97
 #define HEATER_SHUTDOWN_C               0
 #define SLEW_RATE_LIMIT                 255
+#define BUILD_HW_STR                    "HW:MK1_1"
 #elif defined(BOARDCONFIG_MK2)
 #define SAMPLE_ZONE_AMP_SOAK_TARGET_C   68
 #define VALVE_ZONE_AMP_SOAK_TARGET_C    70
@@ -23,6 +25,7 @@
 #define VALVE_ZONE_VALVE_SOAK_TARGET_C  101
 #define HEATER_SHUTDOWN_C               0
 #define SLEW_RATE_LIMIT                 255
+#define BUILD_HW_STR                    "HW:MK2"
 #elif defined(BOARDCONFIG_MK3)
 
 #define SAMPLE_ZONE_AMP_SOAK_TARGET_C   68
@@ -31,6 +34,7 @@
 #define VALVE_ZONE_VALVE_SOAK_TARGET_C  101
 #define HEATER_SHUTDOWN_C               0
 #define SLEW_RATE_LIMIT                 255
+#define BUILD_HW_STR                    "HW:MK3"
 
 #elif defined(BOARDCONFIG_MK4)
 #define SAMPLE_ZONE_AMP_SOAK_TARGET_C   68
@@ -39,6 +43,7 @@
 #define VALVE_ZONE_VALVE_SOAK_TARGET_C  101
 #define HEATER_SHUTDOWN_C               0
 #define SLEW_RATE_LIMIT                 255
+#define BUILD_HW_STR                    "HW:MK4"
 
 #else
 
@@ -49,6 +54,7 @@
 #define VALVE_ZONE_VALVE_SOAK_TARGET_C  90
 #define HEATER_SHUTDOWN_C               0
 #define SLEW_RATE_LIMIT                 255
+#define BUILD_HW_STR                    "HW:OTHER"
 #endif
 /*MK Generation Calibration CONST*/
 

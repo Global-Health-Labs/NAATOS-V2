@@ -24,7 +24,8 @@ TIMERS:
 // To be included only in main(), .ino with setup() to avoid `Multiple Definitions` Linker Error
 #include "ATtiny_ISR_Timer.h"
 
-
+#define SH_FIXED_PWM_TEST 128
+#define VH_FIXED_PWM_TEST 255
 
 /*CONTROL structure
   holds process steps for each STATE in application. Each [INDEX] maps to enum state_machine
@@ -129,7 +130,8 @@ void pid_init(pid_controller_t &pid, CONTROL pid_settings){
     SLEW_RATE_LIMIT);
 }
 
-const char startupMsg[] PROGMEM = "Startup";
+//const char startupMsg[] PROGMEM = "Startup";
+const char startupMsg[] = "NAATOS_V2";
 
 void setup() {
 
@@ -139,8 +141,10 @@ void setup() {
   Serial.begin(9600);
   delay(10);
 
-  Serial.println(startupMsg);
   check_reset_cause();
+  Serial.println(startupMsg);
+  Serial.println(BUILD_HW_STR);
+  Serial.println(FW_VERSION_STR);
 
 
   //INIT peripherial I/O
@@ -297,7 +301,7 @@ void loop() {
       flags.flagUpdateTemperature = false;
       data.sample_temperature_c = TMP1.read_temperature_C();
       data.valve_temperature_c = TMP2.read_temperature_C();
-
+      data.battery_voltage = TMP2.read_supply_voltage();
     }
 
     /*UPDATE OUTPUT:HEATER LOAD*/
@@ -310,9 +314,13 @@ void loop() {
     
       analogWrite(SH_CTRL,sample_zone.out);
       analogWrite(VH_CTRL,valve_zone.out);
+      //analogWrite(SH_CTRL, (int) SH_FIXED_PWM_TEST);
+      //analogWrite(VH_CTRL, (int) VH_FIXED_PWM_TEST);
 
       data.sample_heater_pwm_value = sample_zone.out;
       data.valve_heater_pwm_value = valve_zone.out;
+      //data.sample_heater_pwm_value = SH_FIXED_PWM_TEST;
+      //data.valve_heater_pwm_value = VH_FIXED_PWM_TEST;
     }
 
     /*UPDATE LED1*/

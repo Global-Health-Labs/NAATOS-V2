@@ -1,5 +1,7 @@
 {
     "files.associations": {
-        "unity.h": "c"
+        "unity.h": "c",
+        "wiring_private.h": "c",
+        "pgmspace.h": "c"
     }
 }
