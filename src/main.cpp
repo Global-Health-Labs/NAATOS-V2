@@ -15,6 +15,7 @@ TIMERS:
 #include "TMP23x.h"
 #include "app_data.h"
 #include "state_machine.h"
+#include "alarm.h"
 #include "pid.h"
 #include "utils.h"
 
@@ -105,6 +106,11 @@ void send_log(){
   flags.flagSendLog = true;
 }
 
+void send_vh_max_temp(void) {
+      Serial.print(F("VH_MAX: "));
+      Serial.println(data.valve_max_temperature_c);
+}
+
 void update_led() {
   //digitalWrite(LED1,!digitalRead(LED1));
   flags.flagUpdateLed = true;
@@ -137,6 +143,7 @@ void setup() {
 
   // initalize STATE MACHINE
   data.state = low_power;
+  data.alarm = no_alarm;
 
   Serial.begin(9600);
   delay(10);
@@ -169,6 +176,7 @@ void setup() {
   // INIT PID Structure
   pid_init(sample_zone,sample_amp_control[data.state]);
   pid_init(valve_zone,valve_amp_control[data.state]);
+  data.valve_max_temperature_c = 0;
 
   #if board == ATtiny1607
     // attaches PULL-UP and INTERUPT on FALLING EDGE
@@ -273,8 +281,14 @@ void loop() {
               pid_init(sample_zone,sample_amp_control[data.state]);
               pid_init(valve_zone,valve_amp_control[data.state]);
               ISR_Timer1.disable(tickTimerNumber);
-
-              digitalWrite(LED,true);
+              send_vh_max_temp();
+              if (data.valve_max_temperature_c < VALVE_ZONE_MIN_VALID_TEMP_C) {
+                  // blink the LED to indicate that the minimum valve temperature was not reached.
+                  data.alarm = valve_min_temp_not_reached;
+                  ISR_Timer1.enable(ledTimerNumber);
+              } else {
+                  digitalWrite(LED,true);
+              }
             }
           }
         } else {
@@ -314,6 +328,9 @@ void loop() {
       data.sample_temperature_c = TMP1.read_temperature_C();
       data.sample_temperature_c = TMP1.read_temperature_C();
       data.valve_temperature_c = TMP2.read_temperature_C();
+      if (data.valve_temperature_c > data.valve_max_temperature_c) {
+        data.valve_max_temperature_c = data.valve_temperature_c;
+      }
       data.battery_voltage = TMP2.read_supply_voltage();
 
       analogWrite(SH_CTRL,sample_zone.out);
@@ -343,6 +360,9 @@ void loop() {
     if (flags.flagUpdateLed) {
       flags.flagUpdateLed = false;
       digitalWrite(LED1,!digitalRead(LED1));
+      if (data.alarm == valve_min_temp_not_reached) {
+        digitalWrite(LED,!digitalRead(LED));
+      }
     }
 
     /*UPDATE LOG::Serial COMM*/

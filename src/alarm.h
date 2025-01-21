@@ -4,6 +4,8 @@
 
 enum alarm_state {
     // define alarm states here, probably related to LED indicators
+    no_alarm = 0,
+    valve_min_temp_not_reached
 };
 
 #endif /*ALARM_H_*/

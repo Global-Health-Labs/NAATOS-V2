@@ -7,7 +7,7 @@
 #define ACUTATION_TIME_MIN              5
 #define DETECTION_TIME_MIN              1
 
-#define FW_VERSION_STR                  "FW:v0.2"
+#define FW_VERSION_STR                  "FW:v0.3"
 
 /*MK Generation Calibration CONST*/
 #ifdef BOARDCONFIG_MK1_1
@@ -15,35 +15,39 @@
 #define VALVE_ZONE_AMP_SOAK_TARGET_C    69
 #define SAMPLE_ZONE_VALVE_SOAK_TARGET_C 68
 #define VALVE_ZONE_VALVE_SOAK_TARGET_C  97
+#define VALVE_ZONE_MIN_VALID_TEMP_C     85
 #define HEATER_SHUTDOWN_C               0
 #define SLEW_RATE_LIMIT                 255
-#define BUILD_HW_STR                    "HW:MK1_1"
+#define BUILD_HW_STR                    "HW:MK1_1 #x"
 #elif defined(BOARDCONFIG_MK2)
 #define SAMPLE_ZONE_AMP_SOAK_TARGET_C   68
 #define VALVE_ZONE_AMP_SOAK_TARGET_C    70
 #define SAMPLE_ZONE_VALVE_SOAK_TARGET_C 68
 #define VALVE_ZONE_VALVE_SOAK_TARGET_C  101
+#define VALVE_ZONE_MIN_VALID_TEMP_C     85
 #define HEATER_SHUTDOWN_C               0
 #define SLEW_RATE_LIMIT                 255
-#define BUILD_HW_STR                    "HW:MK2"
+#define BUILD_HW_STR                    "HW:MK2 #x"
 #elif defined(BOARDCONFIG_MK3)
 
 #define SAMPLE_ZONE_AMP_SOAK_TARGET_C   68
 #define VALVE_ZONE_AMP_SOAK_TARGET_C    70
 #define SAMPLE_ZONE_VALVE_SOAK_TARGET_C 68
 #define VALVE_ZONE_VALVE_SOAK_TARGET_C  101
+#define VALVE_ZONE_MIN_VALID_TEMP_C     85
 #define HEATER_SHUTDOWN_C               0
 #define SLEW_RATE_LIMIT                 255
-#define BUILD_HW_STR                    "HW:MK3"
+#define BUILD_HW_STR                    "HW:MK3 #2"
 
 #elif defined(BOARDCONFIG_MK4)
 #define SAMPLE_ZONE_AMP_SOAK_TARGET_C   68
 #define VALVE_ZONE_AMP_SOAK_TARGET_C    70
 #define SAMPLE_ZONE_VALVE_SOAK_TARGET_C 68
 #define VALVE_ZONE_VALVE_SOAK_TARGET_C  101
+#define VALVE_ZONE_MIN_VALID_TEMP_C     85
 #define HEATER_SHUTDOWN_C               0
 #define SLEW_RATE_LIMIT                 255
-#define BUILD_HW_STR                    "HW:MK4"
+#define BUILD_HW_STR                    "HW:MK4 #x"
 
 #else
 
@@ -90,10 +94,11 @@ struct APP_DATA
     float sample_temperature_c;
     float valve_temperature_c;
     uint8_t state = 0;
+    uint8_t alarm = 0;
     volatile uint8_t time_ticker = 0;
 
-    // future use
     float battery_voltage;
+    float valve_max_temperature_c;
 
 } data;
 
