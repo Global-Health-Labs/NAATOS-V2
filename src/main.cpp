@@ -69,6 +69,7 @@ ISR_Timer ISR_Timer1;
 int tickTimerNumber;
 int ledTimerNumber;
 int delayStartNumber;
+int logISRNumber;
 
 // tickISRTimer handles MILLIS counter used for time keeping
 ISRTimerData tickISRTimer = {update_ticker,  TICK_TIMER_INTERVAL, 0,  0};
@@ -109,6 +110,8 @@ void send_log(){
 void send_vh_max_temp(void) {
       Serial.print(F("VH_MAX: "));
       Serial.println(data.valve_max_temperature_c);
+      Serial.print(F("valve_ramp_time: "));
+      Serial.println(data.valve_ramp_time);
 }
 
 void update_led() {
@@ -177,6 +180,7 @@ void setup() {
   pid_init(sample_zone,sample_amp_control[data.state]);
   pid_init(valve_zone,valve_amp_control[data.state]);
   data.valve_max_temperature_c = 0;
+  data.valve_ramp_time = 0;
 
   #if board == ATtiny1607
     // attaches PULL-UP and INTERUPT on FALLING EDGE
@@ -189,7 +193,7 @@ void setup() {
   tickTimerNumber = ISR_Timer1.setInterval(tickISRTimer.TimerInterval,tickISRTimer.irqCallbackFunc);  
   ISR_Timer1.setInterval(pidISRTimerData.TimerInterval,pidISRTimerData.irqCallbackFunc);  
   ISR_Timer1.setInterval(temperatureISRTimer.TimerInterval,temperatureISRTimer.irqCallbackFunc);  
-  ISR_Timer1.setInterval(logISRTimer.TimerInterval,logISRTimer.irqCallbackFunc);  
+  logISRNumber = ISR_Timer1.setInterval(logISRTimer.TimerInterval,logISRTimer.irqCallbackFunc);  
   //ISR_Timer1.setTimer(LedISRTimer.TimerInterval,LedISRTimer.irqCallbackFunc,25);
   delayStartNumber = ISR_Timer1.setInterval(delaystartISRTimer.TimerInterval,delaystartISRTimer.irqCallbackFunc);  
   //ISR_Timer1.setTimer(delaystartISRTimer.TimerInterval,delaystartISRTimer.irqCallbackFunc,1);
@@ -281,14 +285,14 @@ void loop() {
               pid_init(sample_zone,sample_amp_control[data.state]);
               pid_init(valve_zone,valve_amp_control[data.state]);
               ISR_Timer1.disable(tickTimerNumber);
+              ISR_Timer1.disable(logISRNumber);   // stop logging
+
               send_vh_max_temp();
               if (data.valve_max_temperature_c < VALVE_ZONE_MIN_VALID_TEMP_C) {
-                  // blink the LED to indicate that the minimum valve temperature was not reached.
+                  // blink both LEDs to indicate that the minimum valve temperature was not reached.
                   data.alarm = valve_min_temp_not_reached;
-                  ISR_Timer1.enable(ledTimerNumber);
-              } else {
-                  digitalWrite(LED,true);
-              }
+              } 
+              ISR_Timer1.enable(ledTimerNumber);
             }
           }
         } else {
@@ -328,13 +332,19 @@ void loop() {
       data.sample_temperature_c = TMP1.read_temperature_C();
       data.sample_temperature_c = TMP1.read_temperature_C();
       data.valve_temperature_c = TMP2.read_temperature_C();
+
+      analogWrite(SH_CTRL,sample_zone.out);
+      analogWrite(VH_CTRL,valve_zone.out);
+
       if (data.valve_temperature_c > data.valve_max_temperature_c) {
         data.valve_max_temperature_c = data.valve_temperature_c;
       }
       data.battery_voltage = TMP2.read_supply_voltage();
 
-      analogWrite(SH_CTRL,sample_zone.out);
-      analogWrite(VH_CTRL,valve_zone.out);
+      // Measure the number of seconds it takes to ramp to the minimum valve temperature:
+      if (data.state == actuation && data.valve_ramp_time == 0 && data.valve_temperature_c >= VALVE_ZONE_MIN_VALID_TEMP_C) {
+        data.valve_ramp_time = tickISRTimer.deltaMillis / 1000 - (AMPLIFICATION_TIME_MIN * 60);
+      }
     }
 
     /*UPDATE OUTPUT:HEATER LOAD*/

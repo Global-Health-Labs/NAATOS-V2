@@ -7,7 +7,7 @@
 #define ACUTATION_TIME_MIN              5
 #define DETECTION_TIME_MIN              1
 
-#define FW_VERSION_STR                  "FW:v0.3"
+#define FW_VERSION_STR                  "FW:v0.4"
 
 /*MK Generation Calibration CONST*/
 #ifdef BOARDCONFIG_MK1_1
@@ -23,7 +23,7 @@
 #define SAMPLE_ZONE_AMP_SOAK_TARGET_C   68
 #define VALVE_ZONE_AMP_SOAK_TARGET_C    70
 #define SAMPLE_ZONE_VALVE_SOAK_TARGET_C 68
-#define VALVE_ZONE_VALVE_SOAK_TARGET_C  101
+#define VALVE_ZONE_VALVE_SOAK_TARGET_C  97
 #define VALVE_ZONE_MIN_VALID_TEMP_C     85
 #define HEATER_SHUTDOWN_C               0
 #define SLEW_RATE_LIMIT                 255
@@ -33,7 +33,7 @@
 #define SAMPLE_ZONE_AMP_SOAK_TARGET_C   68
 #define VALVE_ZONE_AMP_SOAK_TARGET_C    70
 #define SAMPLE_ZONE_VALVE_SOAK_TARGET_C 68
-#define VALVE_ZONE_VALVE_SOAK_TARGET_C  101
+#define VALVE_ZONE_VALVE_SOAK_TARGET_C  97
 #define VALVE_ZONE_MIN_VALID_TEMP_C     85
 #define HEATER_SHUTDOWN_C               0
 #define SLEW_RATE_LIMIT                 255
@@ -43,7 +43,7 @@
 #define SAMPLE_ZONE_AMP_SOAK_TARGET_C   68
 #define VALVE_ZONE_AMP_SOAK_TARGET_C    70
 #define SAMPLE_ZONE_VALVE_SOAK_TARGET_C 68
-#define VALVE_ZONE_VALVE_SOAK_TARGET_C  101
+#define VALVE_ZONE_VALVE_SOAK_TARGET_C  97
 #define VALVE_ZONE_MIN_VALID_TEMP_C     85
 #define HEATER_SHUTDOWN_C               0
 #define SLEW_RATE_LIMIT                 255
@@ -99,6 +99,7 @@ struct APP_DATA
 
     float battery_voltage;
     float valve_max_temperature_c;
+    uint32_t valve_ramp_time;
 
 } data;
 
