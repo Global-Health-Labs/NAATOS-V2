@@ -251,9 +251,8 @@ void loop() {
         ISR_Timer1.enable(tickTimerNumber);
       }
     
-      // Change UI
-      digitalWrite(LED,false);
-      
+      // Change UI (one LED is on during amplification)
+      digitalWrite(LED,false);      
       digitalWrite(LED1,true);
 
       // Update STATE MACHINE counter for timekeeping
@@ -276,6 +275,9 @@ void loop() {
               data.state = detection;
               pid_init(sample_zone,sample_amp_control[data.state]);
               pid_init(valve_zone,valve_amp_control[data.state]);
+              // turn both LEDs off during detection
+              digitalWrite(LED, true);
+              digitalWrite(LED1, true);              
           }
           if ((tickISRTimer.deltaMillis / 60000)  >= AMPLIFICATION_TIME_MIN + ACUTATION_TIME_MIN + DETECTION_TIME_MIN) {
             // final state -- END
@@ -292,6 +294,11 @@ void loop() {
                   // blink both LEDs to indicate that the minimum valve temperature was not reached.
                   data.alarm = valve_min_temp_not_reached;
               } 
+              // change LEDs to opposite states so they can blink opposite of each other (in alarm)
+              digitalWrite(LED, true);
+              digitalWrite(LED1, false);
+
+              // Enable the LED timer so they can blink at the end
               ISR_Timer1.enable(ledTimerNumber);
             }
           }
@@ -301,6 +308,10 @@ void loop() {
             data.state = actuation;
             pid_init(sample_zone,sample_amp_control[data.state]);
             pid_init(valve_zone,valve_amp_control[data.state]);
+
+            // Change UI (both LEDs are on during valve activation)
+            digitalWrite(LED,false);      
+            digitalWrite(LED1,false);
           }
         }
         
@@ -369,9 +380,14 @@ void loop() {
     /*UPDATE LED1*/
     if (flags.flagUpdateLed) {
       flags.flagUpdateLed = false;
-      digitalWrite(LED1,!digitalRead(LED1));
       if (data.alarm == valve_min_temp_not_reached) {
+        // blink both LEDs if there is a temperature error
         digitalWrite(LED,!digitalRead(LED));
+        digitalWrite(LED1,!digitalRead(LED1));
+      } else {
+        // blink one LED if there are no errors
+        digitalWrite(LED, true);
+        digitalWrite(LED1,!digitalRead(LED1));
       }
     }
 

@@ -18,7 +18,7 @@
 #define VALVE_ZONE_MIN_VALID_TEMP_C     85
 #define HEATER_SHUTDOWN_C               0
 #define SLEW_RATE_LIMIT                 255
-#define BUILD_HW_STR                    "HW:MK1_1 #x"
+#define BUILD_HW_STR                    "HW:MK1_1_Bx"
 #elif defined(BOARDCONFIG_MK2)
 #define SAMPLE_ZONE_AMP_SOAK_TARGET_C   68
 #define VALVE_ZONE_AMP_SOAK_TARGET_C    70
@@ -27,7 +27,7 @@
 #define VALVE_ZONE_MIN_VALID_TEMP_C     85
 #define HEATER_SHUTDOWN_C               0
 #define SLEW_RATE_LIMIT                 255
-#define BUILD_HW_STR                    "HW:MK2 #x"
+#define BUILD_HW_STR                    "HW:MK2_Bx"
 #elif defined(BOARDCONFIG_MK3)
 
 #define SAMPLE_ZONE_AMP_SOAK_TARGET_C   68
@@ -37,7 +37,7 @@
 #define VALVE_ZONE_MIN_VALID_TEMP_C     85
 #define HEATER_SHUTDOWN_C               0
 #define SLEW_RATE_LIMIT                 255
-#define BUILD_HW_STR                    "HW:MK3 #2"
+#define BUILD_HW_STR                    "HW:MK3_B2"
 
 #elif defined(BOARDCONFIG_MK4)
 #define SAMPLE_ZONE_AMP_SOAK_TARGET_C   68
@@ -47,7 +47,7 @@
 #define VALVE_ZONE_MIN_VALID_TEMP_C     85
 #define HEATER_SHUTDOWN_C               0
 #define SLEW_RATE_LIMIT                 255
-#define BUILD_HW_STR                    "HW:MK4 #x"
+#define BUILD_HW_STR                    "HW:MK4_Bx"
 
 #else
 

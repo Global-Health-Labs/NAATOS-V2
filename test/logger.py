@@ -1,7 +1,17 @@
+# logger.py
+#
+# GH Labs, NAATOS V2 serial logger
+# January 2025
+#
+# Required libraries
+#    pip install serial pyserial
+
 import sys
 import datetime
+import serial
+import serial.tools.list_ports as port_list
             
-class FileReader:
+class Logger:
     """Class to read and print contents of a file line by line."""
     
     def __init__(self, file_path):
@@ -9,18 +19,34 @@ class FileReader:
         self.file_path = file_path
         self.logfile_open = False
         
+        if "COM" in file_path:           
+            self.isSerial = True
+            self.serial_init(file_path)
+        elif "/dev" in file_path:           
+            self.isSerial = True
+            self.serial_init(file_path)
+        else:
+            self.isSerial = False
+
+    def run(self):
+        if self.isSerial:
+            self.serial_read_lines()
+        else:
+            self.read_file()
+        
     def open_logfile(self, suffix):
         if self.logfile_open:
             self.close_logfile()
 
         current_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        file_name = f"logs\{current_time}_{suffix}.log"
-        print(f"\tOpening log file: {file_name}")
-        self.log = open(file_name, "a")
+        self.log_file_name = f"logs\\{current_time}_{suffix}.log"
+        print(f"\tOpening log file: {self.log_file_name}")
+        self.log = open(self.log_file_name, "a")
         self.logfile_open = True
+        self.log.write(f"NAATOS V2 {self.log_file_name} on {self.file_path}\n")
         
     def close_logfile(self):
-        print(f"\tClosing log file")
+        print(f"\tClosing log file: {self.log_file_name}")
         self.log.close()
         self.logfile_open = False        
         
@@ -35,7 +61,7 @@ class FileReader:
             self.open_logfile(boardnum)
             
         if self.logfile_open:
-            self.log.write(line)
+            self.log.write(line.rstrip('\n'))
             
         # close the log file at the end of the amplification sequence
         keyword = "valve_ramp_time"
@@ -44,7 +70,27 @@ class FileReader:
             print(f"\tFound: {keyword}")
             self.close_logfile()
             
-        
+    def serial_init(self, port, baudrate=9600, timeout=1):
+        """Initialize serial connection."""
+        try:
+            self.ser = serial.Serial(port, baudrate, timeout=timeout)
+            print(f"Connected to {port} at {baudrate} baud.")
+        except serial.SerialException as e:
+            print(f"Error: Unable to open port {port} - {e}")
+            sys.exit(1)
+
+    def serial_read_lines(self):
+        """Read and print incoming serial data line by line."""
+        try:
+            while True:
+                line = self.ser.readline().decode('utf-8', errors='ignore')
+                self.process_line(line)
+                
+        except KeyboardInterrupt:
+            print("\nStopping serial reader.")
+        finally:
+            self.ser.close()
+            print("Serial port closed.")                    
 
     def read_file(self):
         """Read the file and print each line."""
@@ -63,11 +109,20 @@ def main():
     """Main function to check command-line arguments and run the FileReader."""
     if len(sys.argv) != 2:
         print("Usage: python logger.py <filename>")
-        return
+
+        ports = list(port_list.comports())
+    
+        if not ports:
+            print("No serial ports found.")
+        else:
+            print("Available Serial Ports:")
+            for port in ports:
+                print(f"- {port.device} ({port.description})")
+            return
 
     file_path = sys.argv[1]
-    reader = FileReader(file_path)
-    reader.read_file()
+    logger = Logger(file_path)
+    logger.run()
 
 if __name__ == "__main__":
     main()
