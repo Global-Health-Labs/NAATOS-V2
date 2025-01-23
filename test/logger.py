@@ -75,6 +75,7 @@ class Logger:
         try:
             self.ser = serial.Serial(port, baudrate, timeout=timeout)
             print(f"Connected to {port} at {baudrate} baud.")
+            self.open_logfile("start")     #start a log immediately
         except serial.SerialException as e:
             print(f"Error: Unable to open port {port} - {e}")
             sys.exit(1)
