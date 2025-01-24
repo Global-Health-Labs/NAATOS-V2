@@ -8,26 +8,6 @@ import matplotlib.pyplot as plt
 import msvcrt  # Windows keypress handling
 #import termios, tty  # Linux/macOS keypress handling
 
-def wait_for_key():
-    """Waits for a key press to close the plot and exit."""
-    print("\nPress any key to close the plot and exit...")
-    
-    try:
-        # Windows: use msvcrt.getch()
-        if sys.platform.startswith("win"):
-            msvcrt.getch()
-        # Linux/macOS: use termios & tty
-        else:
-            fd = sys.stdin.fileno()
-            old_settings = termios.tcgetattr(fd)
-            try:
-                tty.setraw(fd)
-                sys.stdin.read(1)
-            finally:
-                termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-    except Exception as e:
-        print(f"Error waiting for key press: {e}")
-
 def find_first_exceeding(series, threshold):
     """
     Finds and prints the index of the first item in a Pandas Series that exceeds the specified threshold.
@@ -42,10 +22,10 @@ def find_first_exceeding(series, threshold):
     exceeding_index = series[series > threshold].index.min()
     
     if pd.notna(exceeding_index):  # Check if a valid index is found
-        print(f"First value exceeding {threshold} is at index: {exceeding_index}")
+        #print(f"First value exceeding {threshold} is at index: {exceeding_index}")
         return exceeding_index
     else:
-        print(f"No value in the series exceeds {threshold}.")
+        #print(f"No value in the series exceeds {threshold}.")
         return -1  # Return -1 if no value exceeds the threshold
         
 def calculate_mhw_energy(sh_r, vh_r, sh_temp, vh_temp, sh_pwm, vh_pwm, voltage):
@@ -81,11 +61,12 @@ def print_logfile_summary(file_path):
         for line in lines[-3:]:
             print(line.strip())
        
-def plot_data(time, title, y_label, dataset1, dataset1_label, dataset2, dataset2_label):       
+def plot_data(time, title, y_label, dataset1, dataset1_label, dataset2 = [], dataset2_label = None):
     # Plot the data
     plt.figure(figsize=(10, 6))
     plt.plot(time, dataset1, label=dataset1_label, marker='o')
-    plt.plot(time, dataset2, label=dataset2_label, marker='s')
+    if dataset2_label is not None:
+        plt.plot(time, dataset2, label=dataset2_label, marker='s')
 
     # X-axis formatting: Show only 1 in 60 labels
     plt.xticks(time[::60], rotation=45)  # Rotate for better readability
@@ -98,20 +79,17 @@ def plot_data(time, title, y_label, dataset1, dataset1_label, dataset2, dataset2
     plt.grid(True)
 
     # Show the plot
-    plt.show()
-    #plt.show(block=False)  # Don't block execution
+    #plt.show()
+    plt.show(block=False)
+    input("Press Enter to continue...")
+    plt.close()
 
-    # Wait for key press before closing
-    #plt.close()
-    #wait_for_key()
-
-def process_logfile(file_path):
+def process_logfile(file_path, file_path2 = None):
     """Reads a CSV file, skips first 6 and last 4 lines, and plots column 1 vs. columns 2 and 5."""
     try:
         
         # Read CSV file while skipping the first 6 rows
         df = pd.read_csv(file_path, skiprows=6)
-
         # Drop last 4 rows
         df = df.iloc[:-4]
 
@@ -120,23 +98,45 @@ def process_logfile(file_path):
             print("Error: The CSV file does not have enough columns (needs at least 6).")
             return
 
-        # Extract relevant columns
         time = df.iloc[:, 0]  # First column (time in msec)
+
+        if file_path2 is not None:
+            df2 = pd.read_csv(file_path2, skiprows=6)
+            # Drop last 4 rows
+            df2 = df2.iloc[:len(time)]
+
+            # Ensure there are enough columns
+            if df2.shape[1] < 6:
+                print("Error: The CSV file does not have enough columns (needs at least 6).")
+                return
+            voltage2 = df2.iloc[:, 7]  # Fifth column (Voltage in mv)
+            vh_temp2 = df2.iloc[:, 4]  # Fifth column (VH Temperature)
+            vh_pwm2 = df2.iloc[:, 6]  #  Seventh column (VH PWM)
+
+
+        # Extract relevant columns
         sh_temp = df.iloc[:, 1]  # Second column (SH Temperature)
         vh_temp = df.iloc[:, 4]  # Fifth column (VH Temperature)
         sh_pwm = df.iloc[:, 3]  # fourth column (SH PWM)
         vh_pwm = df.iloc[:, 6]  #  Seventh column (VH PWM)
         voltage = df.iloc[:, 7]  # Fifth column (Voltage in mv)
 
-        find_first_exceeding(sh_temp, 65) 
+        sh_ramp_time = find_first_exceeding(sh_temp, 65) 
+        print(f"sh_ramp_time: {sh_ramp_time}")
 
         sh_r = 4.27
         vh_r = 4.18
         calculate_mhw_energy(sh_r, vh_r, sh_temp, vh_temp, sh_pwm, vh_pwm, voltage)
-        
-        plot_data(time, file_path, "Temperature (c)", sh_temp, "SH Temperature", vh_temp, "VH Temperature")
 
- 
+        if file_path2 is None:
+            plot_data(time, file_path, "Temperature (c)", sh_temp, "SH Temperature", vh_temp, "VH Temperature")
+            plot_data(time, file_path, "PWM Control (0 to 255)", sh_pwm, "SH PWM", vh_pwm, "VH PWM")
+            plot_data(time, file_path, "Battery Voltage", voltage, "VBat")
+        else:
+            plot_data(time, file_path, "Temperature (c)", vh_temp, "VH_Temp (Amazon)", vh_temp2, "VH_Temp2 (Kirkland)")
+            plot_data(time, file_path, "VH PWM Control", vh_pwm, "VH PWM", vh_pwm2, "VH PWM2")
+            plot_data(time, file_path, "Battery Voltage", voltage, "VBat (Amazon)", voltage2, "VBat (Kirkland)")
+
     except FileNotFoundError:
         print(f"Error: The file '{file_path}' was not found.")
     except pd.errors.EmptyDataError:
@@ -146,14 +146,19 @@ def process_logfile(file_path):
 
 def main():
     """Main function to handle command-line argument."""
-    if len(sys.argv) != 2:
-        print("Usage: python script.py <csv_file>")
+    if len(sys.argv) < 2:
+        print("Usage: python script.py <mk_log_file> [optional: mk_log_file2]")
         return
-
-    file_path = sys.argv[1]
-    print_logfile_summary(file_path)
-    
-    process_logfile(file_path)
+    elif len(sys.argv) == 2:
+        file_path = sys.argv[1]
+        process_logfile(file_path)
+        print_logfile_summary(file_path)
+    elif len(sys.argv) == 3:
+        file_path = sys.argv[1]
+        file_path2 = sys.argv[2]
+        process_logfile(file_path, file_path2)
+        print_logfile_summary(file_path)
+        print_logfile_summary(file_path2)
 
 if __name__ == "__main__":
     main()
