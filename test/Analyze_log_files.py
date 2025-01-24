@@ -5,10 +5,110 @@
 import sys
 import pandas as pd
 import matplotlib.pyplot as plt
+import msvcrt  # Windows keypress handling
+#import termios, tty  # Linux/macOS keypress handling
 
-def plot_csv_data(file_path):
+def wait_for_key():
+    """Waits for a key press to close the plot and exit."""
+    print("\nPress any key to close the plot and exit...")
+    
+    try:
+        # Windows: use msvcrt.getch()
+        if sys.platform.startswith("win"):
+            msvcrt.getch()
+        # Linux/macOS: use termios & tty
+        else:
+            fd = sys.stdin.fileno()
+            old_settings = termios.tcgetattr(fd)
+            try:
+                tty.setraw(fd)
+                sys.stdin.read(1)
+            finally:
+                termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+    except Exception as e:
+        print(f"Error waiting for key press: {e}")
+
+def find_first_exceeding(series, threshold):
+    """
+    Finds and prints the index of the first item in a Pandas Series that exceeds the specified threshold.
+
+    Parameters:
+    - series (pd.Series): The Pandas Series to search.
+    - threshold (float): The number to compare against.
+
+    Returns:
+    - int: The index of the first item exceeding the threshold, or -1 if none found.
+    """
+    exceeding_index = series[series > threshold].index.min()
+    
+    if pd.notna(exceeding_index):  # Check if a valid index is found
+        print(f"First value exceeding {threshold} is at index: {exceeding_index}")
+        return exceeding_index
+    else:
+        print(f"No value in the series exceeds {threshold}.")
+        return -1  # Return -1 if no value exceeds the threshold
+        
+def calculate_mhw_energy(sh_r, vh_r, sh_temp, vh_temp, sh_pwm, vh_pwm, voltage):
+    power_sum = 0
+    
+    for i in range(len(sh_pwm)):
+        # Calculate temperature compensated R values
+        sh_r_temp = sh_r*(1+(sh_temp[i]-25)*0.0039)
+        vh_r_temp = vh_r*(1+(vh_temp[i]-25)*0.0039)
+                
+        power1 = voltage[i] * (voltage[i]/1e6) * (sh_pwm[i] / 255) / sh_r 
+        power2 = voltage[i] * (voltage[i]/1e6) * (vh_pwm[i] / 255) / vh_r 
+        power_sum += power1 + power2
+        if (i > 1195) & (i < 1205):
+            print(f"{i}: sh_r_temp: {sh_r_temp} vh_r_temp: {vh_r_temp} power: {power1 + power2}")
+            
+        power_avg = power_sum / len(sh_pwm)
+        energy_mwh = power_avg *1000 * len(sh_pwm) / 3600
+        
+    print(f"power_sum: {power_sum}")
+    print(f"calculate_mhw_energy: {energy_mwh}")
+
+def print_logfile_summary(file_path):
+ # Read all lines from the file
+        with open(file_path, 'r', encoding='utf-8') as file:
+            lines = file.readlines()
+        
+        print("\nfile_path:")
+        for line in lines[:4]:
+            print(line.strip())
+
+        # Print the last 3 lines
+        for line in lines[-3:]:
+            print(line.strip())
+       
+def plot_data(time, title, y_label, dataset1, dataset1_label, dataset2, dataset2_label):       
+    # Plot the data
+    plt.figure(figsize=(10, 6))
+    plt.plot(time, dataset1, label=dataset1_label, marker='o')
+    plt.plot(time, dataset2, label=dataset2_label, marker='s')
+
+    # X-axis formatting: Show only 1 in 60 labels
+    plt.xticks(time[::60], rotation=45)  # Rotate for better readability
+    
+    # Labels and title
+    plt.xlabel("Time")
+    plt.ylabel(y_label)
+    plt.title(title)
+    plt.legend()
+    plt.grid(True)
+
+    # Show the plot
+    plt.show()
+    #plt.show(block=False)  # Don't block execution
+
+    # Wait for key press before closing
+    #plt.close()
+    #wait_for_key()
+
+def process_logfile(file_path):
     """Reads a CSV file, skips first 6 and last 4 lines, and plots column 1 vs. columns 2 and 5."""
     try:
+        
         # Read CSV file while skipping the first 6 rows
         df = pd.read_csv(file_path, skiprows=6)
 
@@ -21,31 +121,22 @@ def plot_csv_data(file_path):
             return
 
         # Extract relevant columns
-        x = df.iloc[:, 0]  # First column (time in msec)
-        y_temp1 = df.iloc[:, 1]  # Second column (SH Temperature)
-        y_temp2 = df.iloc[:, 4]  # Fifth column (VH Temperature)
-        y_pwm1 = df.iloc[:, 3]  # fourth column (SH PWM)
-        y_pwm2 = df.iloc[:, 6]  #  Seventh column (VH PWM)
-        y_voltage = df.iloc[:, 7]  # Fifth column (Voltage in mv)
+        time = df.iloc[:, 0]  # First column (time in msec)
+        sh_temp = df.iloc[:, 1]  # Second column (SH Temperature)
+        vh_temp = df.iloc[:, 4]  # Fifth column (VH Temperature)
+        sh_pwm = df.iloc[:, 3]  # fourth column (SH PWM)
+        vh_pwm = df.iloc[:, 6]  #  Seventh column (VH PWM)
+        voltage = df.iloc[:, 7]  # Fifth column (Voltage in mv)
 
-        # Plot the data
-        plt.figure(figsize=(10, 6))
-        plt.plot(x, y_temp1, label="SH Temperature", marker='o')
-        plt.plot(x, y_temp2, label="VH Temperature", marker='s')
+        find_first_exceeding(sh_temp, 65) 
 
-        # X-axis formatting: Show only 1 in 60 labels
-        plt.xticks(x[::60], rotation=45)  # Rotate for better readability
+        sh_r = 4.27
+        vh_r = 4.18
+        calculate_mhw_energy(sh_r, vh_r, sh_temp, vh_temp, sh_pwm, vh_pwm, voltage)
         
-        # Labels and title
-        plt.xlabel("Time")
-        plt.ylabel("Temperature (c)")
-        plt.title(file_path)
-        plt.legend()
-        plt.grid(True)
+        plot_data(time, file_path, "Temperature (c)", sh_temp, "SH Temperature", vh_temp, "VH Temperature")
 
-        # Show the plot
-        plt.show()
-
+ 
     except FileNotFoundError:
         print(f"Error: The file '{file_path}' was not found.")
     except pd.errors.EmptyDataError:
@@ -60,7 +151,9 @@ def main():
         return
 
     file_path = sys.argv[1]
-    plot_csv_data(file_path)
+    print_logfile_summary(file_path)
+    
+    process_logfile(file_path)
 
 if __name__ == "__main__":
     main()
