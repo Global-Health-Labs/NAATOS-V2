@@ -35,6 +35,7 @@ CONTROL sample_amp_control[numProcess] =
 {
   {HEATER_SHUTDOWN_C, 0, 0, 2, 1, .5},
   {SAMPLE_ZONE_AMP_SOAK_TARGET_C, 0,0, 29.75, 0.083,0.333},
+  {SAMPLE_ZONE_AMP_SOAK_TARGET_C, 0,0, 29.75, 0.083,0.333},
   {SAMPLE_ZONE_VALVE_SOAK_TARGET_C, 0, 0, 29.75, 0.083,0.333},
   {HEATER_SHUTDOWN_C, 0, 0, 2, 5, 1}
 };
@@ -42,6 +43,7 @@ CONTROL valve_amp_control[numProcess] =
 {
   {HEATER_SHUTDOWN_C, 0, 0, 0, 0, 0},
   {VALVE_ZONE_AMP_SOAK_TARGET_C, 0,0, 14.92, 0.083, 0.333},
+  {VALVE_ZONE_VALVE_PREP_TARGET_C, 0,0, 14.92, 0.083, 0.333},
   {VALVE_ZONE_VALVE_SOAK_TARGET_C,0, 0, 14.92, 0.083, 0.333},
   {HEATER_SHUTDOWN_C, 0, 0, 0, 0, 0}
 };
@@ -302,8 +304,7 @@ void loop() {
               ISR_Timer1.enable(ledTimerNumber);
             }
           }
-        } else {
-          // in actuation ( 35 > TIME > 30)
+        } else if ((tickISRTimer.deltaMillis / 60000) >= AMPLIFICATION_TIME_MIN) {
           if (data.state != actuation) {
             data.state = actuation;
             pid_init(sample_zone,sample_amp_control[data.state]);
@@ -314,7 +315,13 @@ void loop() {
             digitalWrite(LED1,false);
           }
         }
-        
+      } else if ((tickISRTimer.deltaMillis / 60000) >= AMPLIFICATION_TIME_MIN - ACUTATION_PREP_TIME_MIN) {
+          // Pre-heat VH during the last minute of amplification.
+          if (data.state != actuation_prep) {
+              data.state = actuation_prep;
+              pid_init(sample_zone,sample_amp_control[data.state]);
+              pid_init(valve_zone,valve_amp_control[data.state]);
+          }        
       } else {
         // in Amplification (ie < 30)
         if (data.state != amplification) {
