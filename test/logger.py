@@ -1,16 +1,20 @@
 # logger.py
 #
 # GH Labs, NAATOS V2 serial logger
-# January 2025
+# Written by: Mike Deeds, GH Labs, January 2025
+#   (With help from ChatGPT)
 #
 # Required libraries
 #    pip install serial pyserial
 
 import sys
+import os
 import datetime
 import serial
 import serial.tools.list_ports as port_list
-            
+
+VERSION = "v1.0"
+
 class Logger:
     """Class to read and print contents of a file line by line."""
     
@@ -37,6 +41,9 @@ class Logger:
     def open_logfile(self, suffix):
         if self.logfile_open:
             self.close_logfile()
+
+        logs_dir = os.path.join(os.getcwd(), "logs")
+        os.makedirs(logs_dir, exist_ok=True)
 
         current_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         self.log_file_name = f"logs\\{current_time}_{suffix}.log"
@@ -108,13 +115,18 @@ class Logger:
 
 def main():
     """Main function to check command-line arguments and run the FileReader."""
+    print(f"NAATOS v2 Logger version: {VERSION}")
+
     if len(sys.argv) != 2:
-        print("Usage: python logger.py <filename>")
+        print("\tUsage: python -m logger <filename>")
+        print("\tThis program will open and record a new log file each time a NAATOS board powers up.")
+        print("\tlog files are saved to the logs/ subdirectory.")
 
         ports = list(port_list.comports())
     
         if not ports:
             print("No serial ports found.")
+            return
         else:
             print("Available Serial Ports:")
             for port in ports:
