@@ -20,7 +20,7 @@ typedef struct {
   float lim_min;
   float slew_rate;
   /* Controller */
-  float intergrator;
+  float integrator;
   float prevMesurement;
   /* Controller Output */
   float out;

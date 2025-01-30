@@ -5,6 +5,7 @@ enum state_machine
 {
     low_power = 0,
     amplification,
+    actuation_prep,
     actuation,
     detection
 };

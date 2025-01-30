@@ -55,9 +55,8 @@ bool PID::Compute(){
 // slew_rate : 255 negates slew rate limiting
 void pid_controller_init(pid_controller_t *pid, float setpoint, float k_p, float k_i, float k_d, int pid_max, float slew_rate) {
   // Clear controller variables
-  pid->intergrator = 0.0f;
+  pid->integrator = 0.0f;
   pid->prevMesurement = 0.0f;
-  pid->intergrator = 0.0f;
   pid->out = 0.0f;
   // Set from parameters
   pid->setpoint = setpoint;
@@ -77,16 +76,17 @@ void pid_controller_compute(pid_controller_t *pid, float measurement) {
   // Proportional
   float proportial = pid->k_p * error;
   // Compute Integral
-  pid->intergrator += (pid->k_i * error);
-  if (pid->intergrator > pid->lim_max) {
-    pid->intergrator = pid->lim_max;
-  } else if (pid->intergrator < pid->lim_min) {
-    pid->intergrator = pid->lim_min;
+  //pid->integrator += (pid->k_i * error);
+  pid->integrator += error;
+  if (pid->integrator > pid->lim_max) {
+    pid->integrator = pid->lim_max;
+  } else if (pid->integrator < pid->lim_min) {
+    pid->integrator = pid->lim_min;
   }
   // Compute Differential on Input
   float d_input = measurement - pid->prevMesurement;
   // Compute PID Output
-  float out = pid->k_p * error + pid->intergrator - pid->k_d * d_input;
+  float out = pid->k_p * error + pid->k_i * pid->integrator - pid->k_d * d_input;
 
   // Slew Rate Limiting
   if (out - pid->out > pid->slew_rate) {
