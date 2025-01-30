@@ -41,7 +41,7 @@
 #define VALVE_ZONE_MIN_VALID_TEMP_C     85
 #define HEATER_SHUTDOWN_C               0
 #define SLEW_RATE_LIMIT                 255
-#define BUILD_HW_STR                    "HW:MK3_B2"
+#define BUILD_HW_STR                    "HW:MK3_B4"
 
 #elif defined(BOARDCONFIG_MK4)
 #define SAMPLE_ZONE_AMP_SOAK_TARGET_C   68
