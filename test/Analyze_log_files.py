@@ -16,146 +16,233 @@ import msvcrt  # Windows keypress handling
 
 VERSION = "v1.0"
 
-def find_first_exceeding(series, threshold):
-    """
-    Finds and prints the index of the first item in a Pandas Series that exceeds the specified threshold.
+class Analyze_log_files:
 
-    Parameters:
-    - series (pd.Series): The Pandas Series to search.
-    - threshold (float): The number to compare against.
+    def __init__(self):
+        """Initialize the class and load the board resistance CSV into a DataFrame."""
+        heater_r_file_path = "MK_heater_resistance.csv"
+        try:
+            self.heater_r_df = pd.read_csv(heater_r_file_path)
+            #print(f"\tLoaded: {heater_r_file_path}")
+        except FileNotFoundError:
+            print(f"Error: heater_r_file '{heater_r_file_path}' not found.")
+            self.heater_r_df = None
+        except Exception as e:
+            print(f"Error loading {heater_r_file_path}: {e}")
+            self.heater_r_df = None
 
-    Returns:
-    - int: The index of the first item exceeding the threshold, or -1 if none found.
-    """
-    exceeding_index = series[series > threshold].index.min()
-    
-    if pd.notna(exceeding_index):  # Check if a valid index is found
-        #print(f"First value exceeding {threshold} is at index: {exceeding_index}")
-        return exceeding_index
-    else:
-        #print(f"No value in the series exceeds {threshold}.")
-        return -1  # Return -1 if no value exceeds the threshold
-        
-def calculate_mhw_energy(sh_r, vh_r, sh_temp, vh_temp, sh_pwm, vh_pwm, voltage):
-    power_sum = 0
-    
-    for i in range(len(sh_pwm)):
-        # Calculate temperature compensated R values
-        sh_r_temp = sh_r*(1+(sh_temp[i]-25)*0.0039)
-        vh_r_temp = vh_r*(1+(vh_temp[i]-25)*0.0039)
-                
-        power1 = voltage[i] * (voltage[i]/1e6) * (sh_pwm[i] / 255) / sh_r 
-        power2 = voltage[i] * (voltage[i]/1e6) * (vh_pwm[i] / 255) / vh_r 
-        power_sum += power1 + power2
-        if (i > 1195) & (i < 1205):
-            print(f"{i}: sh_r_temp: {sh_r_temp} vh_r_temp: {vh_r_temp} power: {power1 + power2}")
-            
-        power_avg = power_sum / len(sh_pwm)
-        energy_mwh = power_avg *1000 * len(sh_pwm) / 3600
-        
-    print(f"power_sum: {power_sum}")
-    print(f"calculate_mhw_energy: {energy_mwh}")
+    def get_heater_r(self, board_num):
+        if self.heater_r_df is None:
+            print("Error: Dataframe is not loaded.")
+            return None
 
-def print_logfile_summary(file_path):
- # Read all lines from the file
-        with open(file_path, 'r', encoding='utf-8') as file:
-            lines = file.readlines()
-        
-        print("\nfile_path:")
-        for line in lines[:4]:
-            print(line.strip())
+        matched_row = self.heater_r_df[self.heater_r_df["Board"] == board_num]
 
-        # Print the last 3 lines
-        for line in lines[-3:]:
-            print(line.strip())
-       
-def plot_data(time, title, y_label, dataset1, dataset1_label, dataset2 = [], dataset2_label = None):
-    # Plot the data
-    plt.figure(figsize=(10, 6))
-    plt.plot(time, dataset1, label=dataset1_label, marker='o')
-    if dataset2_label is not None:
-        plt.plot(time, dataset2, label=dataset2_label, marker='s')
+        if not matched_row.empty:
+            return tuple(matched_row.iloc[0, 1:3])  # Return values from Column2 & Column3
+        else:
+            print(f"get_heater_r: {board_num} not found")
+            return None
 
-    # X-axis formatting: Show only 1 in 60 labels
-    plt.xticks(time[::60], rotation=45)  # Rotate for better readability
-    
-    # Labels and title
-    plt.xlabel("Time")
-    plt.ylabel(y_label)
-    plt.title(title)
-    plt.legend()
-    plt.grid(True)
+    def find_first_exceeding(self, series, threshold):
+        """
+        Finds and prints the index of the first item in a Pandas Series that exceeds the specified threshold.
 
-    # Show the plot
-    #plt.show()
-    plt.show(block=False)
-    input("Press Enter to continue...")
-    plt.close()
+        Parameters:
+        - series (pd.Series): The Pandas Series to search.
+        - threshold (float): The number to compare against.
 
-def process_logfile(file_path, file_path2 = None):
-    """Reads a CSV file, skips first 6 and last 4 lines, and plots column 1 vs. columns 2 and 5."""
-    try:
-        
-        # Read CSV file while skipping the first 6 rows
-        df = pd.read_csv(file_path, skiprows=6)
-        # Drop last 4 rows
-        df = df.iloc[:-4]
+        Returns:
+        - int: The index of the first item exceeding the threshold, or -1 if none found.
+        """
+        exceeding_index = series[series > threshold].index.min()
 
-        # Ensure there are enough columns
-        if df.shape[1] < 6:
-            print("Error: The CSV file does not have enough columns (needs at least 6).")
-            return
+        if pd.notna(exceeding_index):  # Check if a valid index is found
+            #print(f"First value exceeding {threshold} is at index: {exceeding_index}")
+            return exceeding_index
+        else:
+            #print(f"No value in the series exceeds {threshold}.")
+            return -1  # Return -1 if no value exceeds the threshold
 
-        time = df.iloc[:, 0]  # First column (time in msec)
+    def calculate_mhw_energy(self, mk_board, log_df):
 
-        if file_path2 is not None:
-            df2 = pd.read_csv(file_path2, skiprows=6)
+        sh_r, vh_r = self.get_heater_r(mk_board)
+        print(f"calculate_mhw_energy for {mk_board} with sh_r = {sh_r} and vh_r = {vh_r}")
+
+        time = log_df.iloc[:, 0]        #
+        sh_temp = log_df.iloc[:, 1]     # SH Temperature
+        vh_temp = log_df.iloc[:, 4]     # VH Temperature
+        sh_pwm = log_df.iloc[:, 3]      # SH PWM
+        vh_pwm = log_df.iloc[:, 6]      # VH PWM
+        voltage = log_df.iloc[:, 7]     # Voltage in mv
+
+        power_sum = 0
+        power_sum_sh = 0
+        power_sum_vh = 0
+        max_power = 0
+        max_power_time = 0
+        max_power_sh = 0
+        max_power_vh = 0
+        vbat_min = 10
+        vbat_min_i = 0
+
+        for i in range(len(sh_pwm)):
+            # Calculate temperature compensated R values
+            sh_r_temp = sh_r*(1+(sh_temp[i]-25)*0.0039)
+            vh_r_temp = vh_r*(1+(vh_temp[i]-25)*0.0039)
+
+            v_bat = voltage[i] / 1e3
+            if v_bat < vbat_min:
+                vbat_min = v_bat
+                vbat_min_i = i
+
+            power_sh = v_bat * v_bat * (sh_pwm[i] / 255) / sh_r_temp
+            power_vh = v_bat * v_bat * (vh_pwm[i] / 255) / vh_r_temp
+
+            power = power_sh + power_vh
+
+            if i > 10 and power > max_power:
+                max_power = power
+                max_power_time = i
+
+            if i > 10 and power_sh > max_power_sh:
+                max_power_sh = power_sh
+
+            if i > 10 and power_vh > max_power_vh:
+                max_power_vh = power_vh
+
+            power_sum_sh += power_sh
+            power_sum_vh += power_vh
+            power_sum += power
+            #if (i > 1195) & (i < 1205):
+            #    print(f"{time[i]}: sh_r_temp: {sh_r_temp} vh_r_temp: {vh_r_temp} power: {power1 + power2}")
+            if i==5:
+                print(f"\tStarting VBat: {v_bat}")
+            if i==1190:
+                print(f"\tFinal VBat: {v_bat}")
+
+            avg_power = power_sum / len(sh_pwm)
+            avg_power_sh = power_sum_sh / len(sh_pwm)
+            avg_power_vh = power_sum_vh / len(sh_pwm)
+            total_energy_mwh = avg_power *1000 * len(sh_pwm) / 3600
+            sh_energy_mwh = avg_power_sh *1000 * len(sh_pwm) / 3600
+            vh_energy_mwh = avg_power_vh *1000 * len(sh_pwm) / 3600
+
+        print(f"\tMinimum VBat: {vbat_min} @ time: {time[vbat_min_i]}")
+        print(f"\tmax_power: {max_power:.3} max_power_sh: {max_power_sh:.3} max_power_vh: {max_power_vh:.3} @ time: {time[max_power_time]}")
+        print(f"\tavg_power: {avg_power:.3} avg_power_sh: {avg_power_sh:.3} avg_power_vh: {avg_power_vh:.3}")
+        print(f"total_energy_mwh: {int(total_energy_mwh)} sh_energy_mwh: {int(sh_energy_mwh)} vh_energy_mwh: {int(vh_energy_mwh)}")
+
+        return
+
+    def print_logfile_summary(self, file_path):
+     # Read all lines from the file
+            with open(file_path, 'r', encoding='utf-8') as file:
+                lines = file.readlines()
+
+            print("\nfile_path:")
+            for line in lines[:4]:
+                print(line.strip())
+
+            # Print the last 3 lines
+            for line in lines[-3:]:
+                print(line.strip())
+
+    def plot_data(self, time, title, y_label, dataset1, dataset1_label, dataset2 = [], dataset2_label = None):
+        # Plot the data
+        plt.figure(figsize=(10, 6))
+        plt.plot(time, dataset1, label=dataset1_label, marker='o')
+        if dataset2_label is not None:
+            plt.plot(time, dataset2, label=dataset2_label, marker='s')
+
+        # X-axis formatting: Show only 1 in 60 labels
+        plt.xticks(time[::60], rotation=45)  # Rotate for better readability
+
+        # Labels and title
+        plt.xlabel("Time")
+        plt.ylabel(y_label)
+        plt.title(title)
+        plt.legend()
+        plt.grid(True)
+
+        # Show the plot
+        #plt.show()
+        plt.show(block=False)
+        input("Press Enter to continue...")
+        plt.close()
+
+    def process_logfile(self, file_path, file_path2 = None):
+        """Reads a CSV file, skips first 6 and last 4 lines, and plots column 1 vs. columns 2 and 5."""
+        try:
+
+            # Read CSV file while skipping the first 6 rows
+            log_df = pd.read_csv(file_path, skiprows=6)
             # Drop last 4 rows
-            df2 = df2.iloc[:len(time)]
+            log_df = log_df.iloc[:-4]
 
             # Ensure there are enough columns
-            if df2.shape[1] < 6:
+            if log_df.shape[1] < 6:
                 print("Error: The CSV file does not have enough columns (needs at least 6).")
                 return
-            voltage2 = df2.iloc[:, 7]  # Fifth column (Voltage in mv)
-            vh_temp2 = df2.iloc[:, 4]  # Fifth column (VH Temperature)
-            vh_pwm2 = df2.iloc[:, 6]  #  Seventh column (VH PWM)
+
+            time = log_df.iloc[:, 0]  # First column (time in msec)
+
+            if file_path2 is not None:
+                log_df2 = pd.read_csv(file_path2, skiprows=6)
+                # Drop last 4 rows
+                log_df2 = log_df2.iloc[:len(time)]
+
+                # Ensure there are enough columns
+                if log_df2.shape[1] < 6:
+                    print("Error: The CSV file does not have enough columns (needs at least 6).")
+                    return
+                voltage2 = log_df2.iloc[:, 7]  # Fifth column (Voltage in mv)
+                vh_temp2 = log_df2.iloc[:, 4]  # Fifth column (VH Temperature)
+                vh_pwm2 = log_df2.iloc[:, 6]  #  Seventh column (VH PWM)
 
 
-        # Extract relevant columns
-        sh_temp = df.iloc[:, 1]  # Second column (SH Temperature)
-        vh_temp = df.iloc[:, 4]  # Fifth column (VH Temperature)
-        sh_pwm = df.iloc[:, 3]  # fourth column (SH PWM)
-        vh_pwm = df.iloc[:, 6]  #  Seventh column (VH PWM)
-        voltage = df.iloc[:, 7]  # Fifth column (Voltage in mv)
+            # Extract relevant columns
+            sh_temp = log_df.iloc[:, 1]         # SH Temperature
+            vh_temp = log_df.iloc[:, 4]         # VH Temperature
+            vh_setpoint = log_df.iloc[:, 5]     # VH Setpoint
+            sh_pwm = log_df.iloc[:, 3]          # SH PWM
+            vh_pwm = log_df.iloc[:, 6]          # VH PWM
+            voltage = log_df.iloc[:, 7]         # Voltage in mv
 
-        sh_ramp_time = find_first_exceeding(sh_temp, 65) 
-        print(f"sh_ramp_time: {sh_ramp_time}")
+            sh_ramp_time = self.find_first_exceeding(sh_temp, 65)
+            print(f"sh_ramp_time to 65c: {sh_ramp_time}")
+            vh_start_time = self.find_first_exceeding(vh_setpoint, 96)
+            #print(f"vh_start_time: {vh_start_time}")
+            vh_ramp_time = self.find_first_exceeding(vh_temp, 89)
+            print(f"vh_ramp_time to 89c: {vh_ramp_time - vh_start_time}")
 
-        sh_r = 4.27
-        vh_r = 4.18
-        calculate_mhw_energy(sh_r, vh_r, sh_temp, vh_temp, sh_pwm, vh_pwm, voltage)
+            mk_board = "MK3_B4"
+            self.calculate_mhw_energy(mk_board, log_df)
 
-        if file_path2 is None:
-            plot_data(time, file_path, "Temperature (c)", sh_temp, "SH Temperature", vh_temp, "VH Temperature")
-            plot_data(time, file_path, "PWM Control (0 to 255)", sh_pwm, "SH PWM", vh_pwm, "VH PWM")
-            plot_data(time, file_path, "Battery Voltage", voltage, "VBat")
-        else:
-            plot_data(time, file_path, "Temperature (c)", vh_temp, "VH_Temp (Amazon)", vh_temp2, "VH_Temp2 (Kirkland)")
-            plot_data(time, file_path, "VH PWM Control", vh_pwm, "VH PWM", vh_pwm2, "VH PWM2")
-            plot_data(time, file_path, "Battery Voltage", voltage, "VBat (Amazon)", voltage2, "VBat (Kirkland)")
+            if True:
+                if file_path2 is None:
+                    self.plot_data(time, file_path, "Temperature (c)", sh_temp, "SH Temperature", vh_temp, "VH Temperature")
+                    self.plot_data(time, file_path, "PWM Control (0 to 255)", sh_pwm, "SH PWM", vh_pwm, "VH PWM")
+                    self.plot_data(time, file_path, "Battery Voltage", voltage, "VBat")
+                else:
+                    self.plot_data(time, file_path, "Temperature (c)", vh_temp, "VH_Temp1", vh_temp2, "VH_Temp2")
+                    self.plot_data(time, file_path, "VH PWM Control", vh_pwm, "VH PWM1", vh_pwm2, "VH PWM2")
+                    self.plot_data(time, file_path, "Battery Voltage", voltage, "VBat1", voltage2, "VBat2")
 
-    except FileNotFoundError:
-        print(f"Error: The file '{file_path}' was not found.")
-    except pd.errors.EmptyDataError:
-        print("Error: The file is empty or has insufficient data.")
-    except Exception as e:
-        print(f"Error: {e}")
+        except FileNotFoundError:
+            print(f"Error: The file '{file_path}' was not found.")
+        except pd.errors.EmptyDataError:
+            print("Error: The file is empty or has insufficient data.")
+        except Exception as e:
+            print(f"Error: {e}")
 
 def main():
     """Main function to handle command-line argument."""
+    debug = True
 
     print(f"NAATOS v2 Analyze_log_files version: {VERSION}")
+
+    a = Analyze_log_files()
 
     if len(sys.argv) < 2:
         print(f"\tUsage: python -m Analyze_log_files <mk_log_file> [optional: mk_log_file2]")
@@ -163,17 +250,22 @@ def main():
         print(f"\tIt will also print test data such as heater ramp times.")
         print(f"\tIf one log file is specified, data from the two heaters (SH and VH) are shown in the plot.")
         print(f"\tIf two log files are specified, data from the VH valve heaters are plotted and compared to each other.")
+
+        if debug:
+            file_path = "laptop_logs\\Jan 23 Old lab\\20250123_141546_MK3_B4.log"
+            a.process_logfile(file_path)
+            a.print_logfile_summary(file_path)
         return
     elif len(sys.argv) == 2:
         file_path = sys.argv[1]
-        process_logfile(file_path)
-        print_logfile_summary(file_path)
+        a.process_logfile(file_path)
+        a.print_logfile_summary(file_path)
     elif len(sys.argv) == 3:
         file_path = sys.argv[1]
         file_path2 = sys.argv[2]
-        process_logfile(file_path, file_path2)
-        print_logfile_summary(file_path)
-        print_logfile_summary(file_path2)
+        a.process_logfile(file_path, file_path2)
+        a.print_logfile_summary(file_path)
+        a.print_logfile_summary(file_path2)
 
 if __name__ == "__main__":
     main()
