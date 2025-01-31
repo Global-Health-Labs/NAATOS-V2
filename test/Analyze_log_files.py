@@ -14,6 +14,8 @@ import matplotlib.pyplot as plt
 import msvcrt  # Windows keypress handling
 #import termios, tty  # Linux/macOS keypress handling
 
+import re
+
 VERSION = "v1.0"
 
 class Analyze_log_files:
@@ -108,7 +110,7 @@ class Analyze_log_files:
             if i > 10 and power_sh > max_power_sh:
                 max_power_sh = power_sh
 
-            if i > 10 and power_vh > max_power_vh:
+            if i > 890 and power_vh > max_power_vh:
                 max_power_vh = power_vh
 
             power_sum_sh += power_sh
@@ -215,9 +217,11 @@ class Analyze_log_files:
             #print(f"vh_start_time: {vh_start_time}")
             vh_ramp_time = self.find_first_exceeding(vh_temp, 89)
             print(f"vh_ramp_time to 89c: {vh_ramp_time - vh_start_time}")
+            print(f"vh max temperature: {vh_temp.max()}")
 
-            mk_board = "MK3_B4"
-            self.calculate_mhw_energy(mk_board, log_df)
+            #mk_board = "MK3_B4"
+            mk_match = re.search(r'(MK[^.]*)(?=\.)',file_path)      # extract the MK board number substring
+            self.calculate_mhw_energy(mk_match.group(1), log_df)
 
             if True:
                 if file_path2 is None:

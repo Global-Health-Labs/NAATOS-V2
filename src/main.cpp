@@ -354,20 +354,21 @@ void loop() {
         analogWrite(VH_CTRL,0);
       } else {
         analogWrite(SH_CTRL,0xFF);
-        analogWrite(VH_CTRL,0xFF);
+        //analogWrite(VH_CTRL,0xFF);
       }
 
-      data.sample_temperature_c = TMP1.read_temperature_C();
+      delay(1);
       data.sample_temperature_c = TMP1.read_temperature_C();
       data.valve_temperature_c = TMP2.read_temperature_C();
-
-      analogWrite(SH_CTRL,sample_zone.out);
-      analogWrite(VH_CTRL,valve_zone.out);
 
       if (data.valve_temperature_c > data.valve_max_temperature_c) {
         data.valve_max_temperature_c = data.valve_temperature_c;
       }
       data.battery_voltage = TMP2.read_supply_voltage();
+
+      // re-enable the PWM heater controls:
+      analogWrite(SH_CTRL,sample_zone.out);
+      analogWrite(VH_CTRL,valve_zone.out);
 
       // Measure the number of seconds it takes to ramp to the minimum valve temperature:
       if (data.state == actuation && data.valve_ramp_time == 0 && data.valve_temperature_c >= VALVE_ZONE_MIN_VALID_TEMP_C) {
