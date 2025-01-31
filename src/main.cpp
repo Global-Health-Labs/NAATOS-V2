@@ -60,9 +60,9 @@ CONTROL valve_amp_control[numProcess] =
 
 
 // Temperature objects, handles sensor interface
-TMP23X TMP1;
-TMP23X TMP2;
-
+TMP23X TMP1;  // sh
+TMP23X TMP2;  // vh
+TMP23X TMP3;  // thermistor
 
 volatile byte interrupt1 = 0;
 uint8_t led_value = 0;
@@ -185,8 +185,11 @@ void setup() {
   // INIT temperature sensor I/O
   TMP1.set_analog_pin(SH_ADC_PIN);
   TMP2.set_analog_pin(VH_ADC_PIN);
+  TMP3.set_analog_pin(THERMISTOR_ADC_PIN);
+  
   TMP1.set_adc_reference();
   TMP2.set_adc_reference();
+  TMP3.set_adc_reference();
 
   // INIT PID Structure
   pid_init(sample_zone,sample_amp_control[data.state]);
@@ -353,18 +356,20 @@ void loop() {
         analogWrite(SH_CTRL,0);
         analogWrite(VH_CTRL,0);
       } else {
-        analogWrite(SH_CTRL,0xFF);
-        //analogWrite(VH_CTRL,0xFF);
+        analogWrite(SH_CTRL,0x0);
+        analogWrite(VH_CTRL,0xFF);
       }
 
       delay(1);
       data.sample_temperature_c = TMP1.read_temperature_C();
       data.valve_temperature_c = TMP2.read_temperature_C();
+      data.battery_voltage = TMP3.read_supply_voltage();
+      data.thermistor_voltage_mv = TMP3.read_thermistor_mv();
+      data.thermistor_temperature_c = TMP3.calculateThermistor_C(data.battery_voltage, data.thermistor_voltage_mv);
 
       if (data.valve_temperature_c > data.valve_max_temperature_c) {
         data.valve_max_temperature_c = data.valve_temperature_c;
       }
-      data.battery_voltage = TMP2.read_supply_voltage();
 
       // re-enable the PWM heater controls:
       analogWrite(SH_CTRL,sample_zone.out);
@@ -428,6 +433,10 @@ void loop() {
       Serial.print(data.valve_heater_pwm_value);
       Serial.print(F(", "));
       Serial.print(data.battery_voltage);
+      Serial.print(F(", "));
+      Serial.print(data.thermistor_voltage_mv);
+      Serial.print(F(", "));
+      Serial.print(data.thermistor_temperature_c);
       Serial.print(F(", "));
       Serial.println(data.state);
     }

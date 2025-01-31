@@ -3,11 +3,10 @@
 #define TMP23X_H
 
 #include "Arduino.h"
-
+#include <math.h> 
 
 class TMP23X {
 private:
-
 
 public:
     TMP23X(); 
@@ -17,6 +16,8 @@ public:
     void set_adc_reference();
     uint16_t read_supply_voltage();
     float read_temperature_C(); 
+    float read_thermistor_mv(); 
+    double calculateThermistor_C(double V_bat, double V_thermistor);
 
 };
 

@@ -52,3 +52,40 @@ float TMP23X::read_temperature_C() {           // member method
     }
 }
 
+
+float TMP23X::read_thermistor_mv() {           // member method
+    // TODO: should be able to get analog resolution since it can change
+    //int8_t adc_b = getAnalogReadResolution();
+    // ATTINY 0/1 series is ONLY 10-bit
+    if (int adc_value = analogRead(adc_input_pin)) {
+        float millivolts = adc_value * (read_supply_voltage() / 1023.0);
+        return millivolts;
+    } else {
+        // error
+    }
+}
+
+
+#define BETA_VALUE 4250.0 // Beta value of the NTC thermistor 
+#define R_TOP 100000.0 // Fixed resistor value (100k ohms) 
+#define R0 100000.0 // Resistance of the NTC thermistor at 25°C (100k ohms) 
+#define T0 298.15 // Reference temperature in Kelvin (25°C) 
+
+double TMP23X::calculateThermistor_C(double V_bat, double V_thermistor) 
+{ 
+    if (V_thermistor == 0 || V_bat <= V_thermistor) { 
+        return -1; // Return an error value 
+    } 
+
+    // Calculate the resistance of the NTC thermistor 
+    double R_ntc = R_TOP * (V_thermistor / (V_bat - V_thermistor)); 
+ 
+    // Calculate the temperature in Kelvin using the Beta Parameter equation 
+    double T = BETA_VALUE / (log(R_ntc / R0) + (BETA_VALUE / T0)); 
+ 
+    // Convert the temperature from Kelvin to Celsius 
+    double T_Celsius = T - 273.15; 
+ 
+    return T_Celsius; 
+ } 
+

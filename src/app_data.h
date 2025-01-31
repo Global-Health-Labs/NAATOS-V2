@@ -8,7 +8,7 @@
 #define ACUTATION_TIME_MIN              5
 #define DETECTION_TIME_MIN              1
 
-#define FW_VERSION_STR                  "FW:v0.5"
+#define FW_VERSION_STR                  "FW:v0.6"
 
 /*MK Generation Calibration CONST*/
 #ifdef BOARDCONFIG_MK1_1
@@ -99,6 +99,8 @@ struct APP_DATA
     uint8_t valve_heater_pwm_value = 0;
     float sample_temperature_c;
     float valve_temperature_c;
+    float thermistor_voltage_mv;
+    float thermistor_temperature_c;
     uint8_t state = 0;
     uint8_t alarm = 0;
     volatile uint8_t time_ticker = 0;

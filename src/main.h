@@ -102,6 +102,7 @@
   #define VH_CTRL PIN_PA5
   #define SH_ADC_PIN PIN_PA7
   #define VH_ADC_PIN PIN_PA6
+  #define THERMISTOR_ADC_PIN PIN_PB0    
   // PIN_PB0  --> wired but currently not used
   // PIN_PB1
   #define SerialDebug         Serial
