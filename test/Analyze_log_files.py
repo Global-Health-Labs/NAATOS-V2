@@ -66,10 +66,10 @@ class Analyze_log_files:
             #print(f"No value in the series exceeds {threshold}.")
             return -1  # Return -1 if no value exceeds the threshold
 
-    def calculate_mhw_energy(self, mk_board, log_df):
+    def calculate_mwh_energy(self, mk_board, log_df):
 
         sh_r, vh_r = self.get_heater_r(mk_board)
-        print(f"calculate_mhw_energy for {mk_board} with sh_r = {sh_r} and vh_r = {vh_r}")
+        print(f"calculate_mwh_energy for {mk_board} with sh_r = {sh_r} and vh_r = {vh_r}")
 
         time = log_df.iloc[:, 0]        #
         sh_temp = log_df.iloc[:, 1]     # SH Temperature
@@ -93,13 +93,19 @@ class Analyze_log_files:
             sh_r_temp = sh_r*(1+(sh_temp[i]-25)*0.0039)
             vh_r_temp = vh_r*(1+(vh_temp[i]-25)*0.0039)
 
-            v_bat = voltage[i] / 1e3
+            #v_bat = voltage[i] / 1e3
+            v_bat = 4.86
             if v_bat < vbat_min:
                 vbat_min = v_bat
                 vbat_min_i = i
 
-            power_sh = v_bat * v_bat * (sh_pwm[i] / 255) / sh_r_temp
-            power_vh = v_bat * v_bat * (vh_pwm[i] / 255) / vh_r_temp
+            sh_p = sh_pwm[i]
+            if sh_p < 0: sh_p = 0
+            vh_p = vh_pwm[i]
+            if vh_p < 0: vh_p = 0
+
+            power_sh = v_bat * v_bat * (sh_p / 255) / sh_r_temp
+            power_vh = v_bat * v_bat * (vh_p / 255) / vh_r_temp
 
             power = power_sh + power_vh
 
@@ -143,7 +149,7 @@ class Analyze_log_files:
                 lines = file.readlines()
 
             print("\nfile_path:")
-            for line in lines[:4]:
+            for line in lines[:7]:
                 print(line.strip())
 
             # Print the last 3 lines
@@ -178,9 +184,9 @@ class Analyze_log_files:
         try:
 
             # Read CSV file while skipping the first 6 rows
-            log_df = pd.read_csv(file_path, skiprows=6)
+            log_df = pd.read_csv(file_path, skiprows=13)
             # Drop last 4 rows
-            log_df = log_df.iloc[:-4]
+            log_df = log_df.iloc[:-20]
 
             # Ensure there are enough columns
             if log_df.shape[1] < 6:
@@ -190,7 +196,7 @@ class Analyze_log_files:
             time = log_df.iloc[:, 0]  # First column (time in msec)
 
             if file_path2 is not None:
-                log_df2 = pd.read_csv(file_path2, skiprows=6)
+                log_df2 = pd.read_csv(file_path2, skiprows=10)
                 # Drop last 4 rows
                 log_df2 = log_df2.iloc[:len(time)]
 
@@ -219,11 +225,12 @@ class Analyze_log_files:
             print(f"vh_ramp_time to 89c: {vh_ramp_time - vh_start_time}")
             print(f"vh max temperature: {vh_temp.max()}")
 
-            #mk_board = "MK3_B4"
-            mk_match = re.search(r'(MK[^.]*)(?=\.)',file_path)      # extract the MK board number substring
-            self.calculate_mhw_energy(mk_match.group(1), log_df)
+            mk_board = "MK6F_B1"
+            self.calculate_mwh_energy(mk_board, log_df)
+            #mk_match = re.search(r'(MK[^.]*)(?=\.)',file_path)      # extract the MK board number substring
+            #self.calculate_mwh_energy(mk_match.group(1), log_df)
 
-            if True:
+            if False:
                 if file_path2 is None:
                     self.plot_data(time, file_path, "Temperature (c)", sh_temp, "SH Temperature", vh_temp, "VH Temperature")
                     self.plot_data(time, file_path, "PWM Control (0 to 255)", sh_pwm, "SH PWM", vh_pwm, "VH PWM")
@@ -242,9 +249,9 @@ class Analyze_log_files:
 
 def main():
     """Main function to handle command-line argument."""
-    debug = True
+    debug = False
 
-    print(f"NAATOS v2 Analyze_log_files version: {VERSION}")
+    print(f"\nNAATOS v2 Analyze_log_files version: {VERSION}")
 
     a = Analyze_log_files()
 

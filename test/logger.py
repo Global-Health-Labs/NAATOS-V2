@@ -77,7 +77,7 @@ class Logger:
             print(f"\tFound: {keyword}")
             self.close_logfile()
             
-    def serial_init(self, port, baudrate=9600, timeout=1):
+    def serial_init(self, port, baudrate=115200, timeout=1):
         """Initialize serial connection."""
         try:
             self.ser = serial.Serial(port, baudrate, timeout=timeout)
